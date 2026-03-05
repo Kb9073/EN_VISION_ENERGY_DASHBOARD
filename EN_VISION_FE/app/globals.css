@@ -1,0 +1,353 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+/* rest of your globals.css unchanged... */
+/* =============================================================================
+   ROOT — Full Black Premium Theme
+============================================================================= */
+:root {
+  --background:             0 0% 0%;
+  --foreground:             0 0% 96%;
+  --card:                   0 0% 4%;
+  --card-foreground:        0 0% 96%;
+  --popover:                0 0% 5%;
+  --popover-foreground:     0 0% 96%;
+  --primary:                217 91% 60%;
+  --primary-foreground:     0 0% 100%;
+  --secondary:              0 0% 9%;
+  --secondary-foreground:   0 0% 80%;
+  --muted:                  0 0% 9%;
+  --muted-foreground:       0 0% 45%;
+  --accent:                 0 0% 12%;
+  --accent-foreground:      0 0% 96%;
+  --destructive:            0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border:                 0 0% 100% / 0.07;
+  --input:                  0 0% 100% / 0.06;
+  --ring:                   217 91% 60%;
+  --radius:                 0.875rem;
+
+  /* Accent glows */
+  --glow-blue:    rgba(59,  130, 246, 0.35);
+  --glow-emerald: rgba(16,  185, 129, 0.35);
+  --glow-amber:   rgba(245, 158, 11,  0.35);
+  --glow-violet:  rgba(139, 92,  246, 0.35);
+  --glow-red:     rgba(239, 68,  68,  0.35);
+  --glow-cyan:    rgba(6,   182, 212, 0.35);
+
+  /* Chart palette */
+  --chart-1: 195 75% 55%;
+  --chart-2: 158 64% 52%;
+  --chart-3: 43  96% 56%;
+  --chart-4: 24  95% 56%;
+  --chart-5: 262 83% 68%;
+
+  /* Sidebar */
+  --sidebar-background:        0 0% 2%;
+  --sidebar-foreground:        0 0% 75%;
+  --sidebar-primary:           217 91% 60%;
+  --sidebar-primary-foreground:0 0% 100%;
+  --sidebar-accent:            0 0% 8%;
+  --sidebar-accent-foreground: 0 0% 92%;
+  --sidebar-border:            0 0% 100% / 0.05;
+  --sidebar-ring:              217 91% 60%;
+}
+
+/* =============================================================================
+   BASE RESET
+============================================================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: #000;
+  color: hsl(var(--foreground));
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+#__next, [data-nextjs-root] { height: 100%; background: #000; }
+
+/* =============================================================================
+   SCROLLBAR
+============================================================================= */
+::-webkit-scrollbar              { width: 3px; height: 3px; }
+::-webkit-scrollbar-track        { background: transparent; }
+::-webkit-scrollbar-thumb        { background: rgba(255,255,255,0.08); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(255,255,255,0.15); }
+
+/* =============================================================================
+   SELECTION
+============================================================================= */
+::selection { background: rgba(59,130,246,0.25); color: white; }
+
+/* =============================================================================
+   FOCUS
+============================================================================= */
+:focus-visible { outline: 1.5px solid rgba(59,130,246,0.6); outline-offset: 2px; }
+
+/* =============================================================================
+   TYPOGRAPHY
+============================================================================= */
+h1 { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
+h2 { font-size: 1.25rem;  font-weight: 600; letter-spacing: -0.025em; }
+h3 { font-size: 0.9375rem; font-weight: 600; letter-spacing: -0.015em; }
+h4 { font-size: 0.8125rem; font-weight: 600; letter-spacing: -0.01em; }
+
+/* =============================================================================
+   GLASS CARD
+============================================================================= */
+.glass-card {
+  background:     rgba(255,255,255,0.03);
+  border:         1px solid rgba(255,255,255,0.07);
+  border-radius:  var(--radius);
+  backdrop-filter: blur(16px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* =============================================================================
+   PREMIUM CARD — main interactive card
+============================================================================= */
+.premium-card {
+  position: relative;
+  background:    rgba(255,255,255,0.03);
+  border:        1px solid rgba(255,255,255,0.07);
+  border-radius: var(--radius);
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+
+.premium-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.premium-card:hover {
+  border-color: rgba(255,255,255,0.14);
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05),
+    0 12px 40px rgba(0,0,0,0.5),
+    0 4px 12px rgba(0,0,0,0.3);
+}
+
+.premium-card:hover::before { opacity: 1; }
+
+/* =============================================================================
+   GLOW CARDS — per-color
+============================================================================= */
+.card-glow-blue:hover    { box-shadow: 0 0 24px var(--glow-blue),    0 8px 32px rgba(0,0,0,0.4); border-color: rgba(59,130,246,0.3); }
+.card-glow-emerald:hover { box-shadow: 0 0 24px var(--glow-emerald), 0 8px 32px rgba(0,0,0,0.4); border-color: rgba(16,185,129,0.3); }
+.card-glow-amber:hover   { box-shadow: 0 0 24px var(--glow-amber),   0 8px 32px rgba(0,0,0,0.4); border-color: rgba(245,158,11,0.3); }
+.card-glow-violet:hover  { box-shadow: 0 0 24px var(--glow-violet),  0 8px 32px rgba(0,0,0,0.4); border-color: rgba(139,92,246,0.3);  }
+.card-glow-red:hover     { box-shadow: 0 0 24px var(--glow-red),     0 8px 32px rgba(0,0,0,0.4); border-color: rgba(239,68,68,0.3);   }
+
+/* =============================================================================
+   STAT NUMBER
+============================================================================= */
+.stat-number {
+  font-family: 'DM Mono', monospace;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: white;
+}
+
+.stat-number-lg {
+  font-family: 'DM Mono', monospace;
+  font-size: 2.5rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: white;
+}
+
+/* =============================================================================
+   BADGE
+============================================================================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease;
+}
+
+.badge-up   { background: rgba(239,68,68,0.12);  color: #f87171; }
+.badge-down { background: rgba(16,185,129,0.12); color: #34d399; }
+.badge-flat { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.4); }
+
+/* =============================================================================
+   ICON BOX
+============================================================================= */
+.icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.premium-card:hover .icon-box {
+  transform: scale(1.08);
+}
+
+/* =============================================================================
+   SIDEBAR ITEM
+============================================================================= */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.sidebar-item:hover {
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.06);
+}
+
+.sidebar-item.active {
+  color: white;
+  background: rgba(59,130,246,0.15);
+  border-color: rgba(59,130,246,0.25);
+  box-shadow: 0 0 16px rgba(59,130,246,0.15), inset 0 0 20px rgba(59,130,246,0.05);
+}
+
+.sidebar-item.active .sidebar-icon {
+  color: #60a5fa;
+  filter: drop-shadow(0 0 6px rgba(59,130,246,0.6));
+}
+
+/* =============================================================================
+   SECTION HEADER
+============================================================================= */
+.section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+}
+
+/* =============================================================================
+   TABLE ROW HOVER
+============================================================================= */
+.table-row-hover {
+  transition: background 0.15s ease;
+}
+.table-row-hover:hover { background: rgba(255,255,255,0.03); }
+
+/* =============================================================================
+   PULSE DOT
+============================================================================= */
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
+  animation: pulse-ring 2s ease infinite;
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0   rgba(34,197,94,0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(34,197,94,0);   }
+  100% { box-shadow: 0 0 0 0   rgba(34,197,94,0);   }
+}
+
+/* =============================================================================
+   SHIMMER LOADING
+============================================================================= */
+.shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 0%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* =============================================================================
+   CHART GRID LINES (recharts override)
+============================================================================= */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255,255,255,0.04) !important;
+}
+
+.recharts-text { fill: rgba(255,255,255,0.35) !important; }
+
+/* =============================================================================
+   DIVIDER
+============================================================================= */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.08) 20%,
+    rgba(255,255,255,0.08) 80%,
+    transparent 100%
+  );
+}
+
+/* =============================================================================
+   NUMBER TICKER ANIMATION
+============================================================================= */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.count-animate {
+  animation: count-up 0.4s ease forwards;
+}
+
+/* =============================================================================
+   TAILWIND LAYER
+============================================================================= */
+@layer base {
+  body { @apply bg-black text-white; }
+}
+
+@layer utilities {
+  .border-white\/8  { border-color: rgba(255,255,255,0.08);  }
+  .border-white\/6  { border-color: rgba(255,255,255,0.06);  }
+  .border-white\/5  { border-color: rgba(255,255,255,0.05);  }
+  .border-white\/12 { border-color: rgba(255,255,255,0.12);  }
+}
