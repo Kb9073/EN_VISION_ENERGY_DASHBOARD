@@ -1,21 +1,14 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from typing import Optional
 
 from db.session import get_db
 from schemas.base import StandardResponse
 from services.dashboard.location_consumption.service import get_location_consumption
+from services.dashboard.utils.date_range import resolve_scoped_range
 
 router = APIRouter()
-
-
-def resolve_range(range: str, start_date, end_date):
-    end = end_date or datetime.utcnow().date()
-    if start_date:
-        return start_date, end
-    mapping = {"24h": 1, "7d": 7, "30d": 30, "90d": 90}
-    return end - timedelta(days=mapping.get(range, 7)), end
 
 
 @router.get("/location-consumption", response_model=StandardResponse)
@@ -28,7 +21,15 @@ def location_consumption(
     device_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    start, end = resolve_range(range, start_date, end_date)
+    start, end = resolve_scoped_range(
+        db=db,
+        company_id=company_id,
+        range_param=range,
+        start_date=start_date,
+        end_date=end_date,
+        department_id=department_id,
+        device_id=device_id,
+    )
 
     data = get_location_consumption(
         db=db,

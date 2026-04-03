@@ -7,6 +7,7 @@ from models.location import Location
 from datetime import timedelta
 from typing import Optional
 import statistics
+from utils.tariff import cost_from_kwh
 
 
 def get_forecast(
@@ -39,7 +40,6 @@ def get_forecast(
         db.query(
             EnergyAggDaily.date,
             func.sum(EnergyAggDaily.total_kwh).label("total_kwh"),
-            func.sum(EnergyAggDaily.total_cost).label("total_cost"),
             func.sum(EnergyAggDaily.total_emissions).label("total_emissions"),
             func.sum(EnergyAggDaily.baseline_kwh).label("baseline_kwh"),
         )
@@ -62,7 +62,7 @@ def get_forecast(
         {
             "date": row.date.isoformat(),
             "actual_kwh": round(float(row.total_kwh or 0), 2),
-            "actual_cost": round(float(row.total_cost or 0), 2),
+            "actual_cost": round(cost_from_kwh(float(row.total_kwh or 0)), 2),
             "actual_emissions": round(float(row.total_emissions or 0), 2),
             "baseline_kwh": round(float(row.baseline_kwh or 0), 2),
             "is_forecast": False,

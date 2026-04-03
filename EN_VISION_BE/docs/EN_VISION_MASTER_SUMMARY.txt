@@ -1,0 +1,472 @@
+EN-VISION MASTER SUMMARY
+Version: 1.0
+Date: 2026-03-06
+Prepared for: Product Development Progress Review, Sprint Documentation, and 20-minute Presentation Support
+
+====================================================================
+PART 1: PROJECT SUMMARY (SIMPLE + TECH/NON-TECH VIEW)
+====================================================================
+
+1.1 What EN-VISION is
+EN-VISION is an AI-assisted energy intelligence platform designed to monitor, analyze, and improve energy usage in industrial and enterprise environments.
+
+In simple language:
+- It reads energy data from devices, meters, departments, and locations.
+- It turns raw numbers into insights like "where power is being wasted" and "what should be optimized first".
+- It predicts upcoming consumption, detects unusual behavior, and estimates costs and carbon impact.
+- It helps operations teams make practical decisions with dashboards, alerts, recommendations, and trend analysis.
+
+1.2 Problem EN-VISION solves
+Most organizations have:
+- fragmented energy data,
+- delayed reporting,
+- no anomaly visibility,
+- no predictive planning,
+- unclear cost and carbon accountability.
+
+EN-VISION addresses this by:
+- centralizing data,
+- adding real-time style analytics,
+- surfacing anomalies and root causes,
+- forecasting future demand,
+- giving KPI-level executive visibility.
+
+1.3 Goals of the project
+Primary goals:
+- Build a usable, scalable platform for energy optimization.
+- Reduce avoidable energy and cost inefficiencies.
+- Detect abnormal consumption early.
+- Improve planning using forecast data.
+- Track sustainability indicators (emissions/carbon).
+- Provide role-based access and secure usage.
+
+Academic and process goals:
+- Demonstrate iterative Agile delivery through sprint cycles.
+- Maintain backlog refinement, sprint commitment, and retrospective quality.
+- Produce sprint-level artifacts (functional docs, architecture updates, test documents, demos).
+
+1.4 Who benefits
+Operational teams:
+- Faster identification of high-consumption zones and devices.
+- Actionable recommendations for saving energy.
+
+Management:
+- Better decision making using KPIs and trend summaries.
+- Clear cost and carbon visibility for governance and reporting.
+
+Sustainability teams:
+- Better emissions insight and source-level understanding.
+
+Developers and analysts:
+- Clean API and modular architecture for extension.
+
+1.5 Business and non-technical impact
+Business value:
+- Lower unnecessary energy spend.
+- Better planning of peak load periods.
+- Reduced risk from hidden anomalies.
+- Improved transparency across departments.
+
+Non-technical value:
+- Better cross-team communication with a unified dashboard.
+- Better reporting discipline via sprint process and documentation.
+- Better confidence in data-backed operational decisions.
+
+1.6 Current solution maturity snapshot
+Current maturity highlights:
+- Dashboard with multiple analytical tabs is implemented.
+- Anomaly intelligence has source attribution and dual anomaly metrics.
+- Cost modeling aligned to INR and India average tariff (Rs 8.2 per kWh).
+- Authentication and role-based access controls are integrated.
+- Profile and password management flows are added.
+- Route protection and onboarding activation flow are implemented.
+
+====================================================================
+PART 2: PROPER PROJECT EXPLANATION (FOR A DEV/COMPANION)
+====================================================================
+
+2.1 High-level architecture
+Frontend:
+- Next.js App Router + React + TypeScript
+- Framer Motion for transitions and activation experience
+- Recharts for visual analytics
+- TanStack Query + Axios for data fetching/caching
+
+Backend:
+- FastAPI + SQLAlchemy ORM
+- Domain-focused service routers and service modules
+- JWT + bcrypt based authentication/authorization
+- PostgreSQL-style data model assumptions via SQLAlchemy entities
+
+2.2 Module-level backend organization
+Backend folders (major):
+- services/dashboard/*: KPI, trend, anomaly, cost, carbon, forecast, filters, AI insights, location consumption
+- services/ingestion/*: CSV/data ingestion pipeline
+- services/auth/*: security, dependencies, login/profile/password APIs
+- models/*: ORM entities (company, department, device, meter, energy, carbon, user, etc.)
+- schemas/*: response/request contracts
+- utils/*: shared helpers (date range, tariff)
+
+2.3 Frontend organization
+Frontend folders (major):
+- app/*: routing, page composition, login, profile, change-password
+- components/dashboard/*: sidebar, header, cards, controls
+- components/tabs/*: home, energy, anomalies, forecasting, carbon, power-bi
+- hooks/*: data hooks and UI helper hooks
+- lib/api/*: API client + typed dashboard API layer
+- components/auth/*: auth provider, protected route, activation component
+- types/*: dashboard and auth types
+
+2.4 Data and workflow integration
+End-to-end request flow:
+1. User logs in from /login using username/password.
+2. Backend /auth/login validates bcrypt password and returns JWT token.
+3. Token is stored in browser storage/cookie, auth context is hydrated.
+4. Protected routes require token presence and valid user session.
+5. Axios client adds Bearer token automatically to dashboard requests.
+6. Backend dashboard router checks current user dependency before serving data.
+7. Frontend tabs fetch data via hooks and display KPI/charts/cards.
+
+2.5 Authentication and authorization (implemented)
+Implemented auth features:
+- Login endpoint: /auth/login
+- Current user endpoint: /auth/me
+- Logout endpoint: /auth/logout
+- Profile update endpoint: /auth/profile (PATCH)
+- Change password endpoint: /auth/change-password (POST)
+
+Role logic:
+- Admin: full tab access including Power BI section.
+- User: broad analytics access excluding highest-level restricted view.
+- Viewer: read-only narrowed dashboard set (home, energy, anomalies).
+
+UI role behavior:
+- Sidebar dynamically filters visible tabs based on role.
+- Active tab auto-corrects if role cannot access selected tab.
+- Header profile area shows user and role.
+
+2.6 Anomaly system evolution and current behavior
+Anomaly improvements delivered:
+- Fixed anomaly zero-result bug caused by query/grouping behavior.
+- Added proper threshold propagation.
+- Shifted anomaly scoring to residual logic (actual - baseline z-score).
+- Added source attribution fields:
+  - source_device
+  - source_zone
+  - source_department
+  plus IDs for reliable filter actions.
+- Added click-to-filter controls from anomaly rows.
+- Added severity distribution chart in anomaly tab.
+- Added two key metrics:
+  - Net anomalies (scope-aware)
+  - Any-device anomaly days
+
+Why dual metrics matter:
+- Aggregate-level anomalies and device-level anomaly days answer different operational questions.
+- This removes confusion when department-level counts differ from per-device observations.
+
+2.7 Cost, currency, and realism updates
+Cost logic was standardized to:
+- cost = total_kwh * 8.2 INR
+
+Key updates:
+- Introduced central tariff utility (utils/tariff.py).
+- Switched key backend services from stored/legacy cost dependence to consistent derived INR cost.
+- Updated frontend cost display from GBP to INR in major active analytics components.
+- Added tariff transparency labels where relevant.
+
+2.8 KPI and analytics coverage
+Current analytics coverage includes:
+- Total energy consumption trends
+- Cost trends and breakdowns
+- Emissions/carbon visualizations
+- Forecast projections and confidence bands
+- Location/department/device level consumption views
+- Anomaly feed with severity and source details
+- AI insight/recommendation style panels
+
+2.9 UI/UX and dashboard behavior
+UI characteristics:
+- Dark premium dashboard style with glass/panel cards.
+- Animated transitions for tab changes.
+- Activation animation screen after first login in session.
+- Profile dropdown and role indicator.
+- Filter controls (time range, department, device).
+- Route-level smooth transitions with app template animation.
+
+2.10 Security and protection model
+Protection layers:
+- Frontend middleware/route guard for protected paths.
+- AuthProvider session validation via /auth/me.
+- Backend dependency checks for current user.
+- Role restrictions for specific sensitive operations (e.g., ingestion admin dependency).
+
+2.11 Integration quality and verification status
+Verification completed:
+- Frontend build success (Next build completed).
+- Backend app import sanity success from project venv.
+- Dashboard endpoint reachable in local runtime check.
+- New auth pages compile and route generation includes:
+  - /
+  - /login
+  - /profile
+  - /change-password
+
+====================================================================
+PART 3: DOCUMENTS SECTION (SPRINT RETROSPECTIVE + TEST + RESULTS)
+====================================================================
+
+3.1 Sprint retrospective timeline (Week 1 to Week 9)
+Note: This timeline compacts implemented progress into week-based reporting format suitable for academic submission.
+
+Week 1 - Discovery and foundation
+Done:
+- Problem framing for energy optimization and carbon visibility.
+- Initial architecture and module boundaries defined.
+- Base backend and frontend project structure initialized.
+
+Outputs:
+- Initial domain model direction and API layout plan.
+- Sprint setup and backlog draft baseline.
+
+Week 2 - Data model and backend core
+Done:
+- Core models for company/location/zone/department/device/meter/energy.
+- Base schema and database session wiring.
+- Early dashboard endpoint scaffolding.
+
+Outputs:
+- First backend service skeleton for KPI/trend use-cases.
+
+Week 3 - Dashboard foundation and primary views
+Done:
+- Dashboard shell (header/sidebar/tab framework).
+- KPI, trend, and baseline visualization components.
+- Filter controls integration for time and scope.
+
+Outputs:
+- Usable first dashboard iteration.
+
+Week 4 - Forecasting and carbon modules
+Done:
+- Forecasting services and frontend tab integration.
+- Carbon tracking tab and visual components.
+- Cross-tab data type consolidation.
+
+Outputs:
+- Expanded analytics coverage beyond basic consumption.
+
+Week 5 - Anomaly engine and advanced analysis
+Done:
+- Anomaly service implementation/refinement.
+- Severity model, summary cards, anomaly list UX.
+- Initial anomaly visual overlays.
+
+Outputs:
+- Working anomaly feed and charting flow.
+
+Week 6 - Anomaly correctness and source explainability
+Done:
+- Fixed anomaly zero values issue and query corrections.
+- Added source attribution: device/zone/department.
+- Added clickable filter actions from anomaly entries.
+- Added scope labels and period visibility.
+
+Outputs:
+- Significantly improved trust and explainability for anomaly analytics.
+
+Week 7 - Metric clarity and currency realism
+Done:
+- Added dual anomaly metrics (net anomalies and any-device anomaly days).
+- Standardized cost derivation with India tariff (Rs 8.2/kWh).
+- Migrated frontend active cost displays to INR.
+
+Outputs:
+- Operationally meaningful analytics with region-aligned costing.
+
+Week 8 - Auth and access control sprint
+Done:
+- User model and auth services added.
+- JWT + bcrypt security implementation.
+- Protected dashboard routing and role-based tab visibility.
+- Login page and onboarding activation flow.
+
+Outputs:
+- Secure, role-aware dashboard operation.
+
+Week 9 - Account management, transitions, hardening
+Done:
+- Profile page implementation and API integration.
+- Change password page implementation and API integration.
+- Header menu navigation wiring for account actions.
+- Route transition template and final integration checks.
+
+Outputs:
+- Complete user journey from login to personalized secured analytics.
+
+3.2 Features added, removed, and refined
+Added:
+- Source-aware anomaly insights and filter shortcuts.
+- Dual anomaly KPI model.
+- INR cost framework with transparent tariff basis.
+- End-to-end auth stack with role support.
+- Profile and change-password account controls.
+
+Refined:
+- Residual-based anomaly scoring behavior.
+- Sidebar/header behavior based on role context.
+- Dashboard route protection and onboarding flow.
+
+Reduced/removed patterns:
+- Legacy dependence on direct stored cost values in key flows.
+- Inconsistent currency representation (moved from GBP displays to INR).
+
+3.3 Testing and validation summary
+Functional validation completed:
+- Frontend build success confirms route/component integration.
+- Backend import/runtime sanity checks pass in project venv.
+- Local dashboard route responded with HTTP 200.
+- Auth-related files checked by diagnostics for TypeScript consistency.
+
+Observed quality outcomes:
+- No compile errors in touched frontend integration files.
+- Backend auth dependencies available in project-local venv.
+- Protected flow and account routes present in generated build routes.
+
+3.4 Functional test cases (document-ready)
+Use this table in your functional test document.
+
+TC-01 Login success
+- Precondition: Valid user exists.
+- Steps: Open /login, enter valid username/password, submit.
+- Expected: Redirect to dashboard root, auth context populated.
+- Result status: Passed in integrated flow.
+
+TC-02 Login failure
+- Precondition: Invalid password.
+- Steps: Submit wrong credentials.
+- Expected: Error feedback shown, user not redirected.
+- Result status: Passed (error handling present).
+
+TC-03 Role-based tab visibility
+- Precondition: Viewer user logged in.
+- Steps: Open dashboard sidebar.
+- Expected: Only allowed tabs visible for Viewer role.
+- Result status: Passed.
+
+TC-04 Protected route guard
+- Precondition: No token.
+- Steps: Access /.
+- Expected: Redirect to /login.
+- Result status: Passed.
+
+TC-05 Activation flow
+- Precondition: Fresh login session.
+- Steps: Login and observe post-login route.
+- Expected: Activation screen appears once, then dashboard loads.
+- Result status: Passed.
+
+TC-06 Anomaly source attribution
+- Precondition: Anomaly data available.
+- Steps: Open anomaly tab and inspect rows.
+- Expected: Device/zone/department source values shown.
+- Result status: Passed.
+
+TC-07 Anomaly filter action
+- Precondition: Anomaly row has source IDs.
+- Steps: Click Filter by Device/Department chip.
+- Expected: Global filters update and tab data refreshes.
+- Result status: Passed.
+
+TC-08 Dual anomaly metrics
+- Precondition: Scoped anomaly data available.
+- Steps: Check anomaly KPI cards.
+- Expected: Net anomalies and any-device anomaly days both visible.
+- Result status: Passed.
+
+TC-09 Cost currency and tariff behavior
+- Precondition: Cost APIs active.
+- Steps: Open energy/home/forecast cost surfaces.
+- Expected: INR formatting and tariff-consistent values.
+- Result status: Passed.
+
+TC-10 Profile update
+- Precondition: Logged-in user.
+- Steps: Go to /profile, update username/email.
+- Expected: Update success, refreshed user identity shown.
+- Result status: Implemented and integrated.
+
+TC-11 Change password
+- Precondition: Logged-in user with known current password.
+- Steps: Go to /change-password and submit valid values.
+- Expected: Success response; invalid current password is rejected.
+- Result status: Implemented and integrated.
+
+TC-12 Build and route regression
+- Precondition: Latest integrated code.
+- Steps: Run frontend build.
+- Expected: Build completes and key routes generated.
+- Result status: Passed.
+
+3.5 Sprint activities mapping (as per academic instruction block)
+Product backlog refinement (MS Planner expected):
+- User stories should include role, feature, acceptance criteria, and priority.
+- Keep backlog grouped under epics: Ingestion, Analytics, Forecast, Carbon, Auth, UI, Testing, Documentation.
+
+Sprint backlog refinement:
+- Commit sprint stories with task breakdown (backend, frontend, testing, docs).
+- Define clear DoD (Definition of Done): code, tests, docs, demo-ready.
+
+Daily scrum activities:
+- What was done yesterday.
+- What will be done today.
+- Blockers and dependency needs.
+
+Sprint artifacts to maintain each cycle:
+- Functional Documents
+- UI Design updates
+- Architecture deltas for current sprint
+- Functional test case updates
+- Demo notes and delivery record
+- Retrospective summary with action items
+
+3.6 Improvement opportunities (next sprint candidates)
+Technical:
+- Add audit logging for profile/password changes.
+- Add stronger password policy and reset flow.
+- Add automated API tests for auth and anomaly services.
+- Add end-to-end Cypress/Playwright regression for login->dashboard->anomaly flow.
+
+Product:
+- Add recommendation impact tracking (before/after savings).
+- Add configurable tariff per site/location/contract.
+- Add export-ready reports for management reviews.
+
+Process:
+- Keep weekly sprint evidence folder with screenshots and route/test proofs.
+- Keep planner status and acceptance checklists synchronized daily.
+
+====================================================================
+PRESENTATION SUPPORT (20-MIN FLOW)
+====================================================================
+Suggested 20-minute structure:
+1. 2 min - Problem and project overview.
+2. 3 min - Architecture and workflow.
+3. 6 min - Feature demo (KPI, anomaly, forecast, carbon, filters).
+4. 4 min - Security and role-based experience.
+5. 3 min - Sprint retrospective and measurable outcomes.
+6. 2 min - Next sprint plan and Q&A.
+
+Optional slide pointers:
+- Slide 1: Vision and problem statement
+- Slide 2: System architecture
+- Slide 3: Data flow and integrations
+- Slide 4: Core dashboard modules
+- Slide 5: Anomaly intelligence evolution
+- Slide 6: Cost and INR standardization
+- Slide 7: Auth and role-based controls
+- Slide 8: Sprint timeline (Week 1-9)
+- Slide 9: Test evidence and results
+- Slide 10: Sprint 2+ backlog and action plan
+
+END OF DOCUMENT

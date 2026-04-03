@@ -4,7 +4,6 @@ import logging
 
 from fastapi import UploadFile, HTTPException
 from sqlalchemy import text
-from psycopg2.extras import Json
 
 from db.session import engine
 
@@ -59,11 +58,11 @@ def ingest_csv_file(file: UploadFile):
                 {
                     "service_name": "ingestion_service",
                     "event_type": "CSV_INGEST",
-                    "payload": Json({
+                    "payload": {
                         "file_name": file.filename,
                         "rows_ingested": len(df),
                         "batch_id": batch_id,
-                    }),
+                    },
                 },
             )
 

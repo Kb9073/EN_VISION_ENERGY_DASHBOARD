@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios"
 import config from "@/lib/config"
+import { getAuthToken } from "@/lib/auth"
 
 /**
  * Singleton Axios instance for all EN-VISION API calls.
@@ -11,6 +12,14 @@ const axiosInstance: AxiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+})
+
+axiosInstance.interceptors.request.use((request) => {
+  const token = getAuthToken()
+  if (token) {
+    request.headers.Authorization = `Bearer ${token}`
+  }
+  return request
 })
 
 // Log errors in development only
@@ -43,6 +52,19 @@ const client = {
     _options?: { showErrors?: boolean }
   ): Promise<T> => {
     const response = await axiosInstance.get<T>(url, { params })
+    return response.data
+  },
+
+  post: async <T>(
+    url: string,
+    body?: unknown,
+    params?: Record<string, unknown>,
+    options?: { headers?: Record<string, string> }
+  ): Promise<T> => {
+    const response = await axiosInstance.post<T>(url, body, {
+      params,
+      headers: options?.headers,
+    })
     return response.data
   },
 }

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, Calendar, Building2, Cpu, Check } from "lucide-react"
+import { ChevronDown, Calendar, Building2, Cpu, Check, Clock, CalendarDays, BarChart3, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDepartments, useDevices } from "@/hooks/use-dashboard-data"
 
@@ -21,67 +21,75 @@ export interface FilterState {
   timeRange: TimeRange
   department_id: number | null
   device_id: number | null
+  start_date?: string
+  end_date?: string
 }
 
 interface FilterControlsProps {
   filters: FilterState
   onChange: (filters: FilterState) => void
-  customDateRange?: CustomDateRange
-  onCustomDateRangeChange?: (range: CustomDateRange) => void
+  allowedTimeRanges?: TimeRange[]
+  lockControls?: boolean
+  departmentOptionsOverride?: { id: number; name: string }[]
+  deviceOptionsOverride?: { id: number; name: string }[]
 }
 
 /* =============================================================================
    TIME RANGE PILL GROUP
 ============================================================================= */
 
-const TIME_OPTIONS: { label: string; value: TimeRange }[] = [
-  { label: "24H",    value: "24h"    },
-  { label: "7D",     value: "7d"     },
-  { label: "30D",    value: "30d"    },
-  { label: "90D",    value: "90d"    },
-  { label: "Custom", value: "custom" },
+const TIME_OPTIONS: { label: string; value: TimeRange; icon: React.ElementType }[] = [
+  { label: "24H",    value: "24h",    icon: Clock        },
+  { label: "7D",     value: "7d",     icon: CalendarDays },
+  { label: "30D",    value: "30d",    icon: BarChart3    },
+  { label: "90D",    value: "90d",    icon: TrendingUp   },
+  { label: "Custom", value: "custom", icon: Calendar     },
 ]
 
 function TimeRangePills({
   value,
   onChange,
+  options,
+  disabled,
 }: {
   value: TimeRange
   onChange: (v: TimeRange) => void
+  options: { label: string; value: TimeRange; icon: React.ElementType }[]
+  disabled?: boolean
 }) {
   return (
-    <div
-      className="flex items-center gap-0.5 rounded-xl p-1"
-      style={{
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.07)",
-      }}
-    >
-      {TIME_OPTIONS.map((opt) => {
+    <div className="flex items-center gap-4 bg-[#0B0F19] border border-white/10 rounded-xl px-3 py-2">
+      {options.map((opt) => {
         const active = value === opt.value
+        const Icon = opt.icon
         return (
           <motion.button
             key={opt.value}
-            onClick={() => onChange(opt.value)}
+            onClick={() => !disabled && onChange(opt.value)}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              "relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 select-none",
+              "relative flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 select-none",
               active
-                ? "text-white"
-                : "text-white/35 hover:text-white/65"
+                ? "text-blue-400"
+                : "text-gray-400 hover:text-white hover:bg-white/5",
+              disabled && "opacity-55 cursor-not-allowed"
             )}
           >
             {active && (
               <motion.div
                 layoutId="time-pill"
-                className="absolute inset-0 rounded-lg"
+                className="absolute inset-0 rounded-lg border border-blue-500/30"
                 style={{
-                  background: "rgba(59,130,246,0.9)",
-                  boxShadow: "0 0 14px rgba(59,130,246,0.5)",
+                  background: "rgba(59,130,246,0.2)",
+                  boxShadow: "0 0 10px rgba(59,130,246,0.2)",
                 }}
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
+            <Icon
+              className="relative z-10 shrink-0"
+              style={{ width: 14, height: 14, opacity: 0.7 }}
+            />
             <span className="relative z-10">{opt.label}</span>
           </motion.button>
         )
@@ -133,26 +141,20 @@ function FilterDropdown({
         onClick={() => !disabled && setOpen((v) => !v)}
         whileTap={{ scale: 0.97 }}
         className={cn(
-          "flex items-center gap-2 pl-3 pr-2.5 h-9 rounded-xl text-xs font-medium",
-          "transition-all duration-150 select-none",
+          "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium",
+          "transition-all duration-200 select-none",
+          "bg-[#0B0F19] border border-white/10 text-gray-300",
           open
-            ? "border-blue-500/50 bg-blue-500/10 text-white"
-            : "text-white/55 hover:text-white/80 hover:bg-white/5",
+            ? "border-blue-500/40 bg-[#0E1424] text-white"
+            : "hover:border-blue-500/40 hover:bg-[#0E1424] hover:text-white",
           disabled && "opacity-40 cursor-not-allowed"
         )}
-        style={{
-          background: open ? "rgba(59,130,246,0.1)" : "rgba(255,255,255,0.04)",
-          border: open
-            ? "1px solid rgba(59,130,246,0.4)"
-            : "1px solid rgba(255,255,255,0.08)",
-          boxShadow: open ? "0 0 12px rgba(59,130,246,0.2)" : "none",
-        }}
       >
         <Icon className="w-3.5 h-3.5 shrink-0 text-white/40" />
         <span className="max-w-[120px] truncate">{displayLabel}</span>
         <ChevronDown
           className={cn(
-            "w-3.5 h-3.5 text-white/30 transition-transform duration-200 shrink-0",
+            "w-4 h-4 text-white/70 transition-transform duration-200 shrink-0",
             open && "rotate-180"
           )}
         />
@@ -334,40 +336,65 @@ function CustomDatePicker({
 export function FilterControls({
   filters,
   onChange,
-  customDateRange,
-  onCustomDateRangeChange,
+  allowedTimeRanges,
+  lockControls = false,
+  departmentOptionsOverride,
+  deviceOptionsOverride,
 }: FilterControlsProps) {
   const { data: depts = [],   isLoading: deptsLoading  } = useDepartments()
   const { data: devices = [], isLoading: devicesLoading } = useDevices(filters.department_id)
+  const visibleTimeOptions =
+    allowedTimeRanges && allowedTimeRanges.length > 0
+      ? TIME_OPTIONS.filter((opt) => allowedTimeRanges.includes(opt.value))
+      : TIME_OPTIONS
+
+  const deptOptions = departmentOptionsOverride ?? depts
+  const devOptions = deviceOptionsOverride ?? devices
+  const deptLoading = departmentOptionsOverride ? false : deptsLoading
+  const devLoading = deviceOptionsOverride ? false : devicesLoading
 
   function setTimeRange(timeRange: TimeRange) {
+    if (lockControls) return
     onChange({ ...filters, timeRange })
   }
 
   function setDepartment(department_id: number | null) {
+    if (lockControls) return
     onChange({ ...filters, department_id, device_id: null })
   }
 
   function setDevice(device_id: number | null) {
+    if (lockControls) return
     onChange({ ...filters, device_id })
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-3 flex-wrap">
 
       {/* Time range pills */}
-      <TimeRangePills value={filters.timeRange} onChange={setTimeRange} />
+      <TimeRangePills
+        value={filters.timeRange}
+        onChange={setTimeRange}
+        options={visibleTimeOptions}
+        disabled={lockControls}
+      />
 
       {/* Custom date picker — only shown when custom selected */}
-      {filters.timeRange === "custom" && (
+      {filters.timeRange === "custom" && !lockControls && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
         >
           <CustomDatePicker
-            value={customDateRange}
-            onChange={onCustomDateRangeChange}
+            value={
+              filters.start_date && filters.end_date
+                ? { start: filters.start_date, end: filters.end_date }
+                : undefined
+            }
+            onChange={(range) =>
+              onChange({ ...filters, start_date: range.start, end_date: range.end })
+            }
           />
         </motion.div>
       )}
@@ -379,21 +406,22 @@ export function FilterControls({
       <FilterDropdown
         icon={Building2}
         label="Department"
-        options={depts}
+        options={deptOptions}
         value={filters.department_id}
         onChange={setDepartment}
-        loading={deptsLoading}
+        loading={deptLoading}
+        disabled={lockControls}
       />
 
       {/* Device dropdown */}
       <FilterDropdown
         icon={Cpu}
         label="Device"
-        options={devices}
+        options={devOptions}
         value={filters.device_id}
         onChange={setDevice}
-        loading={devicesLoading}
-        disabled={filters.department_id === null && devices.length === 0}
+        loading={devLoading}
+        disabled={lockControls || (filters.department_id === null && devOptions.length === 0)}
       />
     </div>
   )

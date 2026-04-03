@@ -30,7 +30,7 @@ export function PowerBITab() {
   }, [])
 
   return (
-    <div className="p-6 space-y-6 h-full">
+    <div className="min-h-screen bg-[#070707] p-7 lg:p-10 space-y-8 h-full text-white">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -39,7 +39,7 @@ export function PowerBITab() {
       >
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-chart-5/10">
+            <div className="p-2.5 rounded-xl bg-chart-5/10 border border-white/10">
               <BarChart3 className="w-5 h-5 text-chart-5" />
             </div>
             <div>
@@ -53,7 +53,7 @@ export function PowerBITab() {
           </div>
 
           {/* Role clarification */}
-          <div className="mt-4 p-3 rounded-lg bg-secondary/50 border border-border flex items-start gap-2 max-w-xl">
+          <div className="mt-5 p-4 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-xl flex items-start gap-2.5 max-w-xl">
             <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground">
               <span className="font-medium text-foreground">
@@ -72,7 +72,7 @@ export function PowerBITab() {
           href={POWER_BI_EMBED_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/80 text-sm font-medium text-foreground transition-colors shrink-0"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] text-sm font-medium text-white transition-colors shrink-0"
         >
           <ExternalLink className="w-4 h-4" />
           Open in Power BI
@@ -84,7 +84,7 @@ export function PowerBITab() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass-card overflow-hidden relative"
+        className="glass-card overflow-hidden relative rounded-2xl"
         style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}
       >
         {/* Loading */}

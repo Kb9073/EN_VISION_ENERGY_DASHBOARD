@@ -27,6 +27,7 @@ export interface StandardResponse<T> {
   success: boolean
   data: T
   timestamp: string
+  meta?: Record<string, unknown>
 }
 
 export interface CarbonScopeItem {

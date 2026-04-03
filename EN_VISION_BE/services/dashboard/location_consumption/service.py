@@ -1,12 +1,14 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, literal
+from datetime import datetime, timedelta
 from models.energy import EnergyAggDaily
+from models.energy import EnergyReading
 from models.meter import Meter
 from models.zone import Zone
 from models.location import Location
 from models.device import Device
-from models.department import Department
 from typing import Optional
+from utils.tariff import cost_from_kwh
 
 
 def get_location_consumption(
@@ -29,7 +31,6 @@ def get_location_consumption(
             Location.name.label("location"),
             func.sum(EnergyAggDaily.total_kwh).label("total_kwh"),
             func.sum(EnergyAggDaily.baseline_kwh).label("baseline_kwh"),
-            func.sum(EnergyAggDaily.total_cost).label("total_cost"),
             func.max(EnergyAggDaily.peak_kw).label("peak_kw"),
         )
         .join(Meter, EnergyAggDaily.meter_id == Meter.id)
@@ -56,6 +57,44 @@ def get_location_consumption(
         .all()
     )
 
+    if not rows:
+        start_dt = datetime.combine(start, datetime.min.time())
+        end_dt = datetime.combine(end + timedelta(days=1), datetime.min.time())
+
+        readings_query = (
+            db.query(
+                Zone.name.label("zone"),
+                Location.name.label("location"),
+                (func.sum(EnergyReading.reading_kw) / 60.0).label("total_kwh"),
+                literal(0.0).label("baseline_kwh"),
+                func.max(EnergyReading.reading_kw).label("peak_kw"),
+            )
+            .join(Meter, EnergyReading.meter_id == Meter.id)
+            .join(Zone, Meter.zone_id == Zone.id)
+            .join(Location, Zone.location_id == Location.id)
+            .filter(
+                Location.company_id == company_id,
+                EnergyReading.recorded_at >= start_dt,
+                EnergyReading.recorded_at < end_dt,
+            )
+        )
+
+        if department_id or device_id:
+            readings_query = readings_query.join(Device, Device.id == Meter.device_id)
+            if department_id:
+                readings_query = readings_query.filter(Device.department_id == department_id)
+            if device_id:
+                readings_query = readings_query.filter(Device.id == device_id)
+
+        readings_rows = (
+            readings_query
+            .group_by(Zone.name, Location.name)
+            .order_by((func.sum(EnergyReading.reading_kw) / 60.0).desc())
+            .all()
+        )
+
+        rows = readings_rows
+
     total_kwh = sum(float(r.total_kwh or 0) for r in rows)
 
     return [
@@ -64,7 +103,7 @@ def get_location_consumption(
             "location": row.location,
             "total_kwh": round(float(row.total_kwh or 0), 2),
             "baseline_kwh": round(float(row.baseline_kwh or 0), 2),
-            "total_cost": round(float(row.total_cost or 0), 2),
+            "total_cost": round(cost_from_kwh(float(row.total_kwh or 0)), 2),
             "peak_kw": round(float(row.peak_kw or 0), 2),
             "deviation": round(
                 float(row.total_kwh or 0) - float(row.baseline_kwh or 0), 2

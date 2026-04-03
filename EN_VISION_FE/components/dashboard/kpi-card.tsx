@@ -5,8 +5,7 @@ import { motion, useSpring, useTransform } from "framer-motion"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
-import { KPIDetailPanel } from "./kpi-detail-panel"
-import type { KPIDetailData } from "@/lib/api/dashboard"
+import { KPIDetailPanel, type KPIDetailData } from "./kpi-detail-panel"
 
 /* =========================
    TYPES

@@ -1,13 +1,24 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+import os
+from dotenv import load_dotenv
 
-DATABASE_URL = "postgresql://postgres:StrongNewPassword123@localhost:5432/EN-VISION(Updated)"
+load_dotenv()
 
-engine = create_engine(
-    DATABASE_URL,
-    echo=True,
-    future=True
+DEFAULT_DATABASE_URL = "postgresql://postgres:StrongNewPassword123@localhost:5432/EN-VISION(Updated)"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    DEFAULT_DATABASE_URL,
 )
+
+engine_kwargs = {
+    "echo": True,
+    "future": True,
+}
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(
     bind=engine,

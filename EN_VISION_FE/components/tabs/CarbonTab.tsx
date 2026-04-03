@@ -73,11 +73,11 @@ const SCOPE_DESCRIPTIONS: Record<string, string> = {
 
 function LoadingSkeleton() {
   return (
-    <div className="p-6 space-y-4">
-      <div className="h-64 bg-slate-800/50 rounded animate-pulse" />
-      <div className="grid grid-cols-2 gap-4">
+    <div className="p-7 lg:p-9 space-y-6">
+      <div className="h-64 rounded-2xl border border-white/10 bg-white/[0.04] animate-pulse" />
+      <div className="grid grid-cols-2 gap-6">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-28 bg-slate-800/50 rounded animate-pulse" />
+          <div key={i} className="h-32 rounded-2xl border border-white/10 bg-white/[0.04] animate-pulse" />
         ))}
       </div>
     </div>
@@ -126,23 +126,23 @@ function EmissionsByScopeTab({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06 }}
-            className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-5"
+            className="premium-card p-6"
           >
             <div className="flex items-center gap-2 mb-3">
               <div
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: scope.color }}
               />
-              <p className="text-sm font-semibold text-slate-200">
+              <p className="text-sm font-semibold text-white/80">
                 {scope.label}
               </p>
             </div>
             <p className="text-3xl font-bold text-white">
               {scope.value.toFixed(1)}
             </p>
-            <p className="text-xs text-slate-400 mt-1">tCO₂e</p>
-            <p className="text-xs text-slate-500 mt-2">{scope.description}</p>
-            <div className="mt-3 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+            <p className="text-xs text-white/40 mt-1">tCO₂e</p>
+            <p className="text-xs text-white/30 mt-2">{scope.description}</p>
+            <div className="mt-3 h-1.5 rounded-full bg-white/8 overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${scope.percentage}%` }}
@@ -151,7 +151,7 @@ function EmissionsByScopeTab({
                 style={{ backgroundColor: scope.color }}
               />
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-white/40 mt-1">
               {scope.percentage}% of total
             </p>
           </motion.div>
@@ -160,8 +160,8 @@ function EmissionsByScopeTab({
 
       {/* Pie chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-          <h3 className="text-sm font-semibold mb-4 text-slate-200">
+        <div className="premium-card p-6">
+          <h3 className="text-sm font-semibold mb-4 text-white/80">
             Scope Distribution
           </h3>
           {pieData.length === 0 ? (
@@ -184,8 +184,8 @@ function EmissionsByScopeTab({
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#0F172A",
-                    border: "1px solid #334155",
+                    backgroundColor: "#0a0a0a",
+                    border: "1px solid rgba(255,255,255,0.12)",
                     borderRadius: "8px",
                     color: "white",
                   }}
@@ -196,7 +196,7 @@ function EmissionsByScopeTab({
                 <Legend
                   verticalAlign="bottom"
                   iconType="circle"
-                  wrapperStyle={{ color: "#CBD5E1", fontSize: "12px" }}
+                  wrapperStyle={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -204,8 +204,8 @@ function EmissionsByScopeTab({
         </div>
 
         {/* Bar chart */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-          <h3 className="text-sm font-semibold mb-4 text-slate-200">
+        <div className="premium-card p-6">
+          <h3 className="text-sm font-semibold mb-4 text-white/80">
             Emissions by Scope (tCO₂e)
           </h3>
           {enriched.length === 0 ? (
@@ -215,24 +215,24 @@ function EmissionsByScopeTab({
               <BarChart data={enriched} barSize={40}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#334155"
+                  stroke="rgba(255,255,255,0.06)"
                   vertical={false}
                 />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#94A3B8", fontSize: 12 }}
+                  tick={{ fill: "rgba(255,255,255,0.38)", fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#94A3B8", fontSize: 12 }}
+                  tick={{ fill: "rgba(255,255,255,0.38)", fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#0F172A",
-                    border: "1px solid #334155",
+                    backgroundColor: "#0a0a0a",
+                    border: "1px solid rgba(255,255,255,0.12)",
                     borderRadius: "8px",
                     color: "white",
                   }}
@@ -287,7 +287,7 @@ function EmissionsByCategoryTab({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Pie */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
+      <div className="premium-card p-6">
         <h2 className="text-lg font-semibold mb-6">Category Partition</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -307,8 +307,8 @@ function EmissionsByCategoryTab({
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0F172A",
-                  border: "1px solid #334155",
+                  backgroundColor: "#0a0a0a",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: "8px",
                   color: "white",
                 }}
@@ -334,7 +334,7 @@ function EmissionsByCategoryTab({
                 key={cat.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-4 backdrop-blur-sm hover:border-slate-600/50 transition-all"
+                className="premium-card p-5"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -348,8 +348,8 @@ function EmissionsByCategoryTab({
                     <p className="text-xl font-bold mt-1">
                       {cat.value.toFixed(2)}
                     </p>
-                    <p className="text-xs text-slate-400">tCO₂e</p>
-                    <div className="mt-2 h-1 rounded-full bg-slate-700 overflow-hidden">
+                    <p className="text-xs text-white/40">tCO₂e</p>
+                    <div className="mt-2 h-1 rounded-full bg-white/8 overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${cat.percentage}%` }}
@@ -359,7 +359,7 @@ function EmissionsByCategoryTab({
                       />
                     </div>
                     {totalEmissions > 0 && (
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-white/30 mt-0.5">
                         {cat.percentage.toFixed(1)}% of total
                       </p>
                     )}
@@ -415,8 +415,8 @@ function LocationOverviewTab({
         <>
           {/* Radial chart */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-              <h3 className="text-sm font-semibold mb-4 text-slate-200">
+            <div className="premium-card p-6">
+              <h3 className="text-sm font-semibold mb-4 text-white/80">
                 Emissions Distribution
               </h3>
               <ResponsiveContainer width="100%" height={300}>
@@ -432,12 +432,12 @@ function LocationOverviewTab({
                   <RadialBar
                     dataKey="value"
                     cornerRadius={4}
-                    background={{ fill: "#1E293B" }}
+                    background={{ fill: "rgba(255,255,255,0.04)" }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0F172A",
-                      border: "1px solid #334155",
+                      backgroundColor: "#0a0a0a",
+                      border: "1px solid rgba(255,255,255,0.12)",
                       borderRadius: "8px",
                       color: "white",
                     }}
@@ -447,15 +447,15 @@ function LocationOverviewTab({
                   />
                   <Legend
                     verticalAlign="bottom"
-                    wrapperStyle={{ color: "#CBD5E1", fontSize: "11px" }}
+                    wrapperStyle={{ color: "rgba(255,255,255,0.45)", fontSize: "11px" }}
                   />
                 </RadialBarChart>
               </ResponsiveContainer>
             </div>
 
             {/* Location list */}
-            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-              <h3 className="text-sm font-semibold mb-4 text-slate-200 flex items-center gap-2">
+            <div className="premium-card p-6">
+              <h3 className="text-sm font-semibold mb-4 text-white/80 flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
                 Emissions by Source
               </h3>
@@ -476,14 +476,14 @@ function LocationOverviewTab({
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm text-slate-200 truncate">
+                          <p className="text-sm text-white/80 truncate">
                             {loc.name}
                           </p>
                           <p className="text-sm font-semibold text-white ml-2 shrink-0">
                             {loc.value.toFixed(1)} tCO₂e
                           </p>
                         </div>
-                        <div className="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${loc.percentage}%` }}
@@ -493,7 +493,7 @@ function LocationOverviewTab({
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-slate-400 shrink-0 w-10 text-right">
+                      <p className="text-xs text-white/40 shrink-0 w-10 text-right">
                         {loc.percentage}%
                       </p>
                     </motion.div>
@@ -503,15 +503,15 @@ function LocationOverviewTab({
           </div>
 
           {/* Bar chart */}
-          <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-            <h3 className="text-sm font-semibold mb-4 text-slate-200">
+          <div className="premium-card p-6">
+            <h3 className="text-sm font-semibold mb-4 text-white/80">
               Comparative Source Emissions
             </h3>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={locationData} barSize={36}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#334155"
+                  stroke="rgba(255,255,255,0.06)"
                   vertical={false}
                 />
                 <XAxis
@@ -521,14 +521,14 @@ function LocationOverviewTab({
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#94A3B8", fontSize: 12 }}
+                  tick={{ fill: "rgba(255,255,255,0.38)", fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#0F172A",
-                    border: "1px solid #334155",
+                    backgroundColor: "#0a0a0a",
+                    border: "1px solid rgba(255,255,255,0.12)",
                     borderRadius: "8px",
                     color: "white",
                   }}
@@ -589,23 +589,23 @@ function YearComparisonTab({
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-5"
+          className="premium-card p-6"
         >
           <div className="flex items-center gap-2 mb-2">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <p className="text-sm text-slate-400">Previous Period</p>
+            <Calendar className="w-4 h-4 text-white/40" />
+            <p className="text-sm text-white/40">Previous Period</p>
           </div>
           <p className="text-3xl font-bold text-white">
             {previousTotal.toFixed(1)}
           </p>
-          <p className="text-xs text-slate-400 mt-1">tCO₂e</p>
+          <p className="text-xs text-white/40 mt-1">tCO₂e</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-gradient-to-br from-blue-900/40 to-blue-950/40 border border-blue-700/50 rounded-xl p-5"
+          className="premium-card p-5"
         >
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-blue-400" />
@@ -614,20 +614,16 @@ function YearComparisonTab({
           <p className="text-3xl font-bold text-white">
             {totalEmissions.toFixed(1)}
           </p>
-          <p className="text-xs text-slate-400 mt-1">tCO₂e</p>
+          <p className="text-xs text-white/40 mt-1">tCO₂e</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className={`bg-gradient-to-br rounded-xl p-5 border ${
-            isImprovement
-              ? "from-green-900/40 to-green-950/40 border-green-700/50"
-              : "from-red-900/40 to-red-950/40 border-red-700/50"
-          }`}
+          className="premium-card p-5"
         >
-          <p className="text-sm text-slate-400 mb-2">Change</p>
+          <p className="text-sm text-white/40 mb-2">Change</p>
           <p
             className={`text-3xl font-bold ${
               isImprovement ? "text-green-400" : "text-red-400"
@@ -635,15 +631,15 @@ function YearComparisonTab({
           >
             {isImprovement ? "" : "+"}{change}%
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-white/40 mt-1">
             {isImprovement ? "↓ Reduction" : "↑ Increase"} vs prior period
           </p>
         </motion.div>
       </div>
 
       {/* Grouped bar chart */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-        <h3 className="text-sm font-semibold mb-4 text-slate-200">
+      <div className="premium-card p-6">
+        <h3 className="text-sm font-semibold mb-4 text-white/80">
           Period-over-Period by Source
         </h3>
         {comparisonData.length === 0 ? (
@@ -653,7 +649,7 @@ function YearComparisonTab({
             <BarChart data={comparisonData} barCategoryGap="30%">
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#334155"
+                stroke="rgba(255,255,255,0.06)"
                 vertical={false}
               />
               <XAxis
@@ -663,14 +659,14 @@ function YearComparisonTab({
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 12 }}
+                tick={{ fill: "rgba(255,255,255,0.38)", fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0F172A",
-                  border: "1px solid #334155",
+                  backgroundColor: "#0a0a0a",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   borderRadius: "8px",
                   color: "white",
                 }}
@@ -679,7 +675,7 @@ function YearComparisonTab({
                 }
               />
               <Legend
-                wrapperStyle={{ color: "#CBD5E1", fontSize: "12px" }}
+                wrapperStyle={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}
               />
               <Bar
                 dataKey="previous"
@@ -699,8 +695,8 @@ function YearComparisonTab({
       </div>
 
       {/* Summary comparison */}
-      <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-xl p-6">
-        <h3 className="text-sm font-semibold mb-4 text-slate-200">
+      <div className="premium-card p-6">
+        <h3 className="text-sm font-semibold mb-4 text-white/80">
           Total Comparison
         </h3>
         <div className="space-y-4">
@@ -712,7 +708,7 @@ function YearComparisonTab({
                   {item.value.toFixed(1)} tCO₂e
                 </span>
               </div>
-              <div className="h-2.5 rounded-full bg-slate-700 overflow-hidden">
+              <div className="h-2.5 rounded-full bg-white/8 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{
@@ -726,7 +722,7 @@ function YearComparisonTab({
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-500 mt-4">
+        <p className="text-xs text-white/30 mt-4">
           * Previous period estimated at 110% of current. Connect a year-over-year endpoint to show real historical data.
         </p>
       </div>
@@ -773,8 +769,8 @@ export function CarbonTab({ filters: _filters }: CarbonTabProps = {}) {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-6 lg:p-8 text-white">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[#070707] px-8 py-10 text-white">
+      <div className="max-w-[1400px] mx-auto space-y-8">
 
         {/* Page Header */}
         <motion.div
@@ -782,7 +778,7 @@ export function CarbonTab({ filters: _filters }: CarbonTabProps = {}) {
           animate={{ opacity: 1, y: 0 }}
         >
           <h1 className="text-3xl font-bold">Carbon Footprint</h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-white/40 mt-1">
             Emissions analytics by source and category
           </p>
         </motion.div>
@@ -792,7 +788,7 @@ export function CarbonTab({ filters: _filters }: CarbonTabProps = {}) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {summaryCards.map((card, i) => (
             <motion.div
@@ -800,13 +796,13 @@ export function CarbonTab({ filters: _filters }: CarbonTabProps = {}) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.05 }}
-              className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 backdrop-blur-sm hover:border-slate-600/50 transition-all"
+              className="premium-card p-6"
             >
-              <p className="text-sm font-medium text-slate-400 mb-2">
+              <p className="text-sm font-medium text-white/40 mb-2">
                 {card.title}
               </p>
               <p className="text-2xl font-bold">{card.value}</p>
-              <p className="text-xs text-slate-500 mt-2">tCO₂e</p>
+              <p className="text-xs text-white/30 mt-2">tCO₂e</p>
             </motion.div>
           ))}
         </motion.div>
@@ -815,7 +811,7 @@ export function CarbonTab({ filters: _filters }: CarbonTabProps = {}) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex gap-1 border-b border-slate-700 overflow-x-auto"
+          className="flex gap-1.5 border-b border-white/10 overflow-x-auto"
         >
           {tabs.map((tab) => (
             <button
@@ -824,7 +820,7 @@ export function CarbonTab({ filters: _filters }: CarbonTabProps = {}) {
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? "border-green-500 text-white"
-                  : "border-transparent text-slate-400 hover:text-white"
+                  : "border-transparent text-white/45 hover:text-white"
               }`}
             >
               {tab.label}

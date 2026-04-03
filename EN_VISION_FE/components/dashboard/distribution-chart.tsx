@@ -9,10 +9,10 @@ import {
   Tooltip,
   type TooltipProps,
 } from "recharts"
-import type { CarbonBreakdown } from "@/lib/api"
+import type { CarbonBreakdownItem } from "@/lib/api/dashboard"
 
 interface DistributionChartProps {
-  data: CarbonBreakdown[]
+  data: CarbonBreakdownItem[]
   isLoading?: boolean
   title?: string
   centerLabel?: string
@@ -65,6 +65,8 @@ export function DistributionChart({
   centerLabel,
   centerValue,
 }: DistributionChartProps) {
+  const totalValue = data.reduce((sum, item) => sum + Number(item.value ?? 0), 0)
+
   /* ---------- Loading ---------- */
   if (isLoading) {
     return (
@@ -108,7 +110,7 @@ export function DistributionChart({
               outerRadius={80}
               paddingAngle={3}
               dataKey="value"
-              nameKey="category"
+              nameKey="source"
             >
               {data.map((_, index) => (
                 <Cell
@@ -138,7 +140,7 @@ export function DistributionChart({
       <div className="flex flex-wrap justify-center gap-3 mt-4">
         {data.map((item, index) => (
           <div
-            key={item.category}
+            key={item.source}
             className="flex items-center gap-2"
           >
             <div
@@ -149,7 +151,8 @@ export function DistributionChart({
               }}
             />
             <span className="text-xs text-muted-foreground">
-              {item.category}
+              {item.source}
+              {totalValue > 0 ? ` (${((item.value / totalValue) * 100).toFixed(1)}%)` : ""}
             </span>
           </div>
         ))}

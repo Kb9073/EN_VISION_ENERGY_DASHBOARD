@@ -7,6 +7,7 @@ from models.energy import EnergyAggDaily
 from models.meter import Meter
 from models.device import Device
 from models.department import Department
+from utils.tariff import cost_from_kwh
 
 
 def _build_cost_query(
@@ -24,7 +25,7 @@ def _build_cost_query(
     """
     query = (
         db.query(
-            func.coalesce(func.sum(EnergyAggDaily.total_cost), 0).label("total_cost"),
+            func.coalesce(func.sum(EnergyAggDaily.total_kwh), 0).label("total_kwh"),
         )
         .join(Meter, Meter.id == EnergyAggDaily.meter_id)
         .join(Device, Device.id == Meter.device_id)
@@ -35,10 +36,10 @@ def _build_cost_query(
         )
     )
 
-    if department_id:
+    if department_id is not None:
         query = query.filter(Device.department_id == department_id)
 
-    if device_id:
+    if device_id is not None:
         query = query.filter(Meter.device_id == device_id)
 
     return query
@@ -59,7 +60,8 @@ def get_cost_metrics(
         db, company_id, start, end, department_id, device_id
     ).first()
 
-    current_cost = float(current_result.total_cost or 0)
+    current_kwh = float(current_result.total_kwh or 0)
+    current_cost = cost_from_kwh(current_kwh)
 
     # -----------------------------
     # 2️⃣ Previous Period Total Cost
@@ -73,7 +75,8 @@ def get_cost_metrics(
         db, company_id, prev_start, prev_end, department_id, device_id
     ).first()
 
-    previous_cost = float(previous_result.total_cost or 0)
+    previous_kwh = float(previous_result.total_kwh or 0)
+    previous_cost = cost_from_kwh(previous_kwh)
 
     # -----------------------------
     # 3️⃣ Cost by Device Type
@@ -83,7 +86,7 @@ def get_cost_metrics(
     type_rows = (
         db.query(
             Device.device_type,
-            func.coalesce(func.sum(EnergyAggDaily.total_cost), 0).label("cost"),
+            func.coalesce(func.sum(EnergyAggDaily.total_kwh), 0).label("kwh"),
         )
         .join(Meter, Meter.id == EnergyAggDaily.meter_id)
         .join(Device, Device.id == Meter.device_id)
@@ -101,10 +104,11 @@ def get_cost_metrics(
 
     for row in type_rows:
         device_type = (row.device_type or "").lower()
+        row_cost = cost_from_kwh(float(row.kwh or 0))
         if "electric" in device_type or "hvac" in device_type or "light" in device_type:
-            electricity_cost += float(row.cost or 0)
+            electricity_cost += row_cost
         else:
-            other_cost += float(row.cost or 0)
+            other_cost += row_cost
 
     # If no device_type breakdown available, split proportionally
     if electricity_cost == 0 and other_cost == 0 and current_cost > 0:

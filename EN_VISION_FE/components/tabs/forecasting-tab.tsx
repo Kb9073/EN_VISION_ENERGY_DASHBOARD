@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   TrendingUp, TrendingDown, Minus,
-  Calendar, Zap, DollarSign, Leaf, ChevronDown,
+  Calendar, Zap, DollarSign, Leaf,
 } from "lucide-react"
 import { useForecast } from "@/hooks/use-dashboard-data"
 import { EmptyState } from "@/components/dashboard/empty-state"
+import type { FilterState } from "@/components/dashboard/filter-controls"
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -26,7 +27,6 @@ import {
 ============================================================================= */
 
 type Metric = "kwh" | "cost" | "emissions"
-type Horizon = 7 | 30 | 90
 
 /* =============================================================================
    TOOLTIP
@@ -55,9 +55,13 @@ function ChartTooltip({ active, payload, label }: any) {
    MAIN COMPONENT
 ============================================================================= */
 
-export function ForecastingTab() {
-  const [horizon, setHorizon] = useState<Horizon>(7)
+export function ForecastingTab({ filters }: { filters: FilterState }) {
   const [metric, setMetric] = useState<Metric>("kwh")
+
+  const horizon: number =
+    filters.timeRange === "90d" ? 90
+    : filters.timeRange === "30d" ? 30
+    : 7
 
   const { data, isLoading, error, refetch } = useForecast(horizon)
 
@@ -126,8 +130,8 @@ export function ForecastingTab() {
       avg: summary?.avg_daily_kwh ?? 0,
     },
     cost: {
-      label: "Cost (£)",
-      unit: "£",
+      label: "Cost (INR)",
+      unit: "₹",
       color: "#F59E0B",
       icon: DollarSign,
       total: summary?.total_predicted_cost ?? 0,
@@ -163,8 +167,8 @@ export function ForecastingTab() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+      <div className="p-7 lg:p-9 space-y-6">
+        <div className="grid grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-28 rounded-2xl bg-white/5 animate-pulse" />
           ))}
@@ -176,7 +180,7 @@ export function ForecastingTab() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div className="p-7 lg:p-9">
         <EmptyState type="api-error" onRetry={refetch} />
       </div>
     )
@@ -184,15 +188,15 @@ export function ForecastingTab() {
 
   if (!data || (historical.length === 0 && forecast.length === 0)) {
     return (
-      <div className="p-6">
+      <div className="p-7 lg:p-9">
         <EmptyState type="no-data" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#070707] text-white px-8 py-10">
+      <div className="max-w-[1400px] mx-auto space-y-8">
 
         {/* ── Header ── */}
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
@@ -204,25 +208,8 @@ export function ForecastingTab() {
 
         {/* ── Controls ── */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Horizon selector */}
-          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-            {([7, 30, 90] as Horizon[]).map((h) => (
-              <button
-                key={h}
-                onClick={() => setHorizon(h)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  horizon === h
-                    ? "bg-blue-500 text-white"
-                    : "text-white/40 hover:text-white"
-                }`}
-              >
-                {h}d
-              </button>
-            ))}
-          </div>
-
           {/* Metric selector */}
-          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1 relative">
             {(["kwh", "cost", "emissions"] as Metric[]).map((m) => {
               const cfg = metricConfig[m]
               const Icon = cfg.icon
@@ -230,18 +217,20 @@ export function ForecastingTab() {
                 <button
                   key={m}
                   onClick={() => setMetric(m)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    metric === m
-                      ? "bg-white/10 text-white"
-                      : "text-white/40 hover:text-white"
-                  }`}
+                  className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors z-10"
+                  style={{ color: metric === m ? "white" : "rgba(255,255,255,0.38)" }}
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  {m === "kwh"
-                    ? "Energy"
-                    : m === "cost"
-                    ? "Cost"
-                    : "Carbon"}
+                  {metric === m && (
+                    <motion.div
+                      layoutId="metric-pill"
+                      className="absolute inset-0 rounded-lg bg-white/10"
+                      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                    />
+                  )}
+                  <Icon className="w-3.5 h-3.5 relative z-10" />
+                  <span className="relative z-10">
+                    {m === "kwh" ? "Energy" : m === "cost" ? "Cost" : "Carbon"}
+                  </span>
                 </button>
               )
             })}
@@ -262,7 +251,7 @@ export function ForecastingTab() {
         </div>
 
         {/* ── Summary KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
             {
               label: `Total Predicted (${horizon}d)`,
@@ -292,7 +281,7 @@ export function ForecastingTab() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.07 }}
-              className="rounded-2xl border border-white/8 bg-white/[0.03] p-5"
+              className="rounded-xl border border-white/10 bg-[#0d0d10] p-6 transition-all duration-300 hover:border-blue-500/30 hover:bg-[#111116] shadow-lg shadow-black/40"
             >
               <p className="text-xs text-white/40 mb-2">{kpi.label}</p>
               <p className="text-3xl font-bold text-white">
@@ -310,7 +299,7 @@ export function ForecastingTab() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-white/8 bg-white/[0.03] p-6"
+          className="rounded-xl border border-white/10 bg-[#0d0d10] p-6"
         >
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-semibold text-white">
@@ -359,7 +348,7 @@ export function ForecastingTab() {
                   metric === "kwh"
                     ? `${(v / 1000).toFixed(0)}k`
                     : metric === "cost"
-                    ? `£${(v / 1000).toFixed(0)}k`
+                    ? `₹${(v / 1000).toFixed(0)}k`
                     : v.toFixed(0)
                 }
               />
@@ -434,7 +423,7 @@ export function ForecastingTab() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden"
+          className="rounded-xl border border-white/10 bg-[#0d0d10] overflow-hidden shadow-lg shadow-black/40"
         >
           <div className="px-6 py-4 border-b border-white/8">
             <h3 className="text-sm font-semibold text-white">
@@ -449,7 +438,7 @@ export function ForecastingTab() {
                     (col) => (
                       <th
                         key={col}
-                        className="px-6 py-3 text-left text-white/30 font-medium"
+                        className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-white/30"
                       >
                         {col}
                       </th>
@@ -463,31 +452,31 @@ export function ForecastingTab() {
                     key={row.date}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.03 }}
-                    className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                    transition={{ delay: i * 0.025 }}
+                    className="border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors group"
                   >
-                    <td className="px-6 py-3 text-white font-medium">
+                    <td className="px-6 py-3.5 text-white/70 font-medium group-hover:text-white transition-colors">
                       {new Date(row.date).toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
                       })}
                     </td>
-                    <td className="px-6 py-3 text-blue-400 font-semibold">
+                    <td className="px-6 py-3.5 text-blue-400 font-semibold">
                       {row.predicted_kwh.toLocaleString()}
                     </td>
-                    <td className="px-6 py-3 text-amber-400">
-                      £{row.predicted_cost.toLocaleString("en-GB", {
+                    <td className="px-6 py-3.5 text-amber-400">
+                      ₹{row.predicted_cost.toLocaleString("en-IN", {
                         maximumFractionDigits: 2,
                       })}
                     </td>
-                    <td className="px-6 py-3 text-emerald-400">
+                    <td className="px-6 py-3.5 text-emerald-400">
                       {row.predicted_emissions.toFixed(2)} t
                     </td>
-                    <td className="px-6 py-3 text-white/30">
+                    <td className="px-6 py-3.5 text-white/25">
                       {row.lower_bound.toLocaleString()}
                     </td>
-                    <td className="px-6 py-3 text-white/30">
+                    <td className="px-6 py-3.5 text-white/25">
                       {row.upper_bound.toLocaleString()}
                     </td>
                   </motion.tr>

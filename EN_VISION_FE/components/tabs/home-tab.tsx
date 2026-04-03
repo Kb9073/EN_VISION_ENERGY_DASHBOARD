@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   TrendingUp, Zap, AlertCircle, Leaf, Activity,
@@ -20,6 +20,11 @@ import {
   useAIInsights,
   type DashboardFilters,
 } from "@/hooks/use-dashboard-data"
+import {
+  BillSideChat,
+  type BillDashboardSource,
+  type ScannedBill,
+} from "@/components/dashboard/bill-side-chat"
 
 import type { FilterState } from "@/components/dashboard/filter-controls"
 import type { EnergyTrendPoint } from "@/lib/api/dashboard"
@@ -28,10 +33,122 @@ import type { EnergyTrendPoint } from "@/lib/api/dashboard"
    TYPES + HELPERS
 ============================================================================= */
 
-interface HomeTabProps { filters: FilterState }
+interface HomeTabProps {
+  filters: FilterState
+  onFiltersChange?: (next: FilterState) => void
+  activeDataSourceId?: string
+  billSources?: BillDashboardSource[]
+  scannedBills?: ScannedBill[]
+}
 
 function toApiFilters(f: FilterState): DashboardFilters {
-  return { timeRange: f.timeRange, department_id: f.department_id, device_id: f.device_id }
+  const base: DashboardFilters = {
+    timeRange: f.timeRange,
+    department_id: f.department_id,
+    device_id: f.device_id,
+  }
+  if (f.timeRange === "custom" && f.start_date && f.end_date) {
+    base.start_date = f.start_date
+    base.end_date = f.end_date
+  }
+  return base
+}
+
+function buildCustomTrend(bills: ScannedBill[]): EnergyTrendPoint[] {
+  const rows = new Map<string, number>()
+
+  bills.forEach((bill) => {
+    if (bill.parsed.day_wise_consumption.length > 0) {
+      bill.parsed.day_wise_consumption.forEach((row) => {
+        const key = row.date
+        rows.set(key, (rows.get(key) ?? 0) + (row.kwh ?? 0))
+      })
+      return
+    }
+
+    const start = bill.period.startISO
+    const end = bill.period.endISO
+    const total = bill.parsed.total_energy_consumption_kwh ?? 0
+    if (!start || !end || total <= 0) return
+
+    const startTs = new Date(`${start}T00:00:00`).getTime()
+    const endTs = new Date(`${end}T00:00:00`).getTime()
+    const days = Math.floor((endTs - startTs) / 86400000) + 1
+    if (days <= 0) return
+
+    const perDay = total / days
+    for (let i = 0; i < days; i += 1) {
+      const d = new Date(startTs + i * 86400000)
+      const key = d.toISOString().slice(0, 10)
+      rows.set(key, (rows.get(key) ?? 0) + perDay)
+    }
+  })
+
+  return Array.from(rows.entries())
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([date, kwh]) => ({
+      timestamp: `${date}T00:00:00Z`,
+      total_kwh: kwh,
+      total_cost: 0,
+      total_emissions: 0,
+      peak_power: 0,
+      baseline_kwh: kwh,
+    }))
+}
+
+function buildCustomDashboard(source: BillDashboardSource | undefined, scannedBills: ScannedBill[]) {
+  if (!source) return null
+  const bills = scannedBills.filter((b) => source.billIds.includes(b.id))
+  if (bills.length === 0) return null
+
+  const totalKwh = bills.reduce((sum, b) => sum + (b.parsed.total_energy_consumption_kwh ?? 0), 0)
+  const totalCost = bills.reduce((sum, b) => sum + (b.parsed.total_amount_inr ?? 0), 0)
+  const totalCo2Kg = bills.reduce((sum, b) => sum + (b.parsed.carbon_emissions_kg_co2 ?? 0), 0)
+  const peakKw = bills.reduce((max, b) => Math.max(max, b.parsed.max_demand_kw ?? 0), 0)
+
+  const trend = buildCustomTrend(bills)
+  const avgKwh = trend.length > 0 ? totalKwh / trend.length : totalKwh
+
+  const zoneMap = new Map<string, { total_kwh: number; baseline_kwh: number; deviation: number }>()
+  bills.forEach((b) => {
+    const zone = b.assignedDepartmentName ?? "Unassigned Department"
+    const kwh = b.parsed.total_energy_consumption_kwh ?? 0
+    const prev = zoneMap.get(zone) ?? { total_kwh: 0, baseline_kwh: 0, deviation: 0 }
+    zoneMap.set(zone, {
+      total_kwh: prev.total_kwh + kwh,
+      baseline_kwh: prev.baseline_kwh + kwh,
+      deviation: 0,
+    })
+  })
+
+  const zones = Array.from(zoneMap.entries()).map(([zone, values]) => ({ zone, ...values }))
+  const uniqueDevices = new Set(bills.map((b) => b.assignedDeviceId).filter((v): v is number => !!v))
+
+  return {
+    kpis: {
+      totalEnergyConsumption: { value: totalKwh, delta: 0 },
+      energySaved: { value: 0, delta: 0 },
+      overConsumptionPercent: { value: 0, delta: 0 },
+      co2Emissions: { value: totalCo2Kg / 1000, delta: 0, period: "from bill" },
+      avgConsumption: avgKwh,
+      peakConsumption: peakKw,
+      totalCost,
+    },
+    trend,
+    appliances: {
+      active_devices: uniqueDevices.size,
+      total_devices: uniqueDevices.size,
+    },
+    zones,
+    insights: [
+      {
+        id: "custom-1",
+        title: "Custom bill dashboard active",
+        description: "You are viewing uploaded bill data. Main system data remains unchanged.",
+        severity: "low",
+      },
+    ],
+  }
 }
 
 const insightCfg = {
@@ -43,11 +160,42 @@ const insightCfg = {
 const ZONE_COLORS = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#06B6D4"]
 
 /* =============================================================================
+   COUNT-UP ANIMATION
+============================================================================= */
+
+function AnimatedNumber({ value, decimals = 0 }: { value: number; decimals?: number }) {
+  const [display, setDisplay] = useState(0)
+  const frame = useRef<number | null>(null)
+
+  useEffect(() => {
+    let start: number | null = null
+    const duration = 1100
+    const animate = (ts: number) => {
+      if (!start) start = ts
+      const progress = Math.min((ts - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplay(value * eased)
+      if (progress < 1) frame.current = requestAnimationFrame(animate)
+    }
+    frame.current = requestAnimationFrame(animate)
+    return () => { if (frame.current !== null) cancelAnimationFrame(frame.current) }
+  }, [value])
+
+  return (
+    <>
+      {decimals > 0
+        ? display.toFixed(decimals)
+        : Math.floor(display).toLocaleString("en-US")}
+    </>
+  )
+}
+
+/* =============================================================================
    SKELETON
 ============================================================================= */
 
 function CardSkeleton() {
-  return <div className="h-36 rounded-2xl shimmer border border-white/5" />
+  return <div className="h-40 rounded-2xl shimmer border border-white/10 bg-white/[0.03]" />
 }
 
 /* =============================================================================
@@ -85,42 +233,44 @@ function KPICard({
   const isGood = isSaved ? !isUp : !isUp
 
   return (
-    <motion.button
+      <motion.button
       onClick={onClick}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -3, transition: { duration: 0.15 } }}
-      whileTap={{ scale: 0.98 }}
-      className={`premium-card ${glowClass} text-left p-5 w-full group`}
+      whileHover={{ y: -3, scale: 1.015, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.97 }}
+      className={`premium-card ${glowClass} text-left p-card-lg w-full group`}
     >
       {/* Top row */}
-      <div className="flex items-start justify-between mb-4">
-        <div className={`icon-box w-10 h-10 ${iconBg}`}
+      <div className="flex items-start justify-between mb-9">
+        <motion.div 
+          whileHover={{ scale: 1.1 }}
+      className={`icon-box w-11 h-11 ${iconBg} -mt-1`}
           style={{ border: `1px solid ${borderColor}` }}>
-          <Icon className={`w-4.5 h-4.5 ${iconColor}`} />
-        </div>
-        <div className={`badge ${isGood ? "badge-down" : "badge-up"}`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </motion.div>
+        <motion.div className={`badge ${isGood ? "badge-down" : "badge-up"}`} whileHover={{ scale: 1.05 }}>
           {isGood
-            ? <ArrowDownRight className="w-3 h-3" />
-            : <ArrowUpRight   className="w-3 h-3" />
+            ? <ArrowDownRight className="w-3.5 h-3.5" />
+            : <ArrowUpRight   className="w-3.5 h-3.5" />
           }
           {Math.abs(delta).toFixed(1)}%
-        </div>
+        </motion.div>
       </div>
 
       {/* Value */}
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35 mb-1">
+      <p className="text-label-xs text-white/40 mb-3">
         {label}
       </p>
-      <p className="stat-number count-animate">
+      <p className="text-value-lg">
         {typeof value === "number"
-          ? value.toLocaleString("en-US", { maximumFractionDigits: 1 })
+          ? <AnimatedNumber value={value} decimals={value % 1 !== 0 ? 1 : 0} />
           : value}
-        <span className="text-sm font-normal text-white/30 ml-1.5">{unit}</span>
+        <span className="text-xs font-medium text-white/35 ml-2">{unit}</span>
       </p>
 
       {/* Bottom detail */}
-      <p className="text-[11px] text-white/25 mt-2 truncate">{detail}</p>
+      <p className="text-xs text-white/25 mt-4 truncate">{detail}</p>
 
       {/* Hover accent line */}
       <div
@@ -135,11 +285,19 @@ function KPICard({
    AI INSIGHTS
 ============================================================================= */
 
-function AIInsightsPanel({ filters }: { filters: DashboardFilters }) {
-  const { data: insights = [], isLoading } = useAIInsights(filters)
+function AIInsightsPanel({
+  filters,
+  insightsOverride,
+}: {
+  filters: DashboardFilters
+  insightsOverride?: Array<{ id: string; title: string; description: string; severity: string }>
+}) {
+  const { data: insightsData = [], isLoading } = useAIInsights(filters)
+  const insights = insightsOverride ?? insightsData
+  const resolvedLoading = insightsOverride ? false : isLoading
 
   return (
-    <div className="premium-card h-full p-6 flex flex-col">
+    <div className="premium-card h-full p-card-lg flex flex-col">
       <div className="flex items-center gap-2.5 mb-5">
         <div className="w-8 h-8 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center"
           style={{ boxShadow: "0 0 12px rgba(139,92,246,0.2)" }}>
@@ -148,10 +306,10 @@ function AIInsightsPanel({ filters }: { filters: DashboardFilters }) {
         <div>
           <h3 className="text-[13px] font-semibold text-white">AI Insights</h3>
           <p className="text-[10px] text-white/30">
-            {isLoading ? "Analyzing data…" : `${insights.length} active insight${insights.length !== 1 ? "s" : ""}`}
+            {resolvedLoading ? "Analyzing data…" : `${insights.length} active insight${insights.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        {!isLoading && insights.length > 0 && (
+        {!resolvedLoading && insights.length > 0 && (
           <div className="ml-auto flex items-center gap-1.5">
             <div className="pulse-dot" />
             <span className="text-[10px] text-white/30">Live</span>
@@ -159,7 +317,7 @@ function AIInsightsPanel({ filters }: { filters: DashboardFilters }) {
         )}
       </div>
 
-      {isLoading && (
+      {resolvedLoading && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-14 rounded-xl shimmer" />
@@ -167,7 +325,7 @@ function AIInsightsPanel({ filters }: { filters: DashboardFilters }) {
         </div>
       )}
 
-      {!isLoading && insights.length === 0 && (
+      {!resolvedLoading && insights.length === 0 && (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[12px] text-white/20 text-center">
             No insights yet — add more energy data to enable analysis.
@@ -215,12 +373,20 @@ function AIInsightsPanel({ filters }: { filters: DashboardFilters }) {
    ZONE CONSUMPTION CHART
 ============================================================================= */
 
-function ZoneChart({ filters }: { filters: DashboardFilters }) {
-  const { data: zones = [], isLoading } = useLocationConsumption(filters)
+function ZoneChart({
+  filters,
+  dataOverride,
+}: {
+  filters: DashboardFilters
+  dataOverride?: Array<{ zone: string; total_kwh: number; baseline_kwh: number; deviation: number }>
+}) {
+  const { data: zonesData = [], isLoading } = useLocationConsumption(filters)
+  const zones = dataOverride ?? zonesData
+  const resolvedLoading = dataOverride ? false : isLoading
 
   return (
-    <div className="premium-card p-6 h-full">
-      <div className="flex items-center gap-2.5 mb-5">
+    <div className="premium-card p-card-lg h-full">
+        <div className="flex items-center gap-2.5 mb-5">
         <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/25 flex items-center justify-center"
           style={{ boxShadow: "0 0 12px rgba(59,130,246,0.2)" }}>
           <MapPin className="w-4 h-4 text-blue-400" />
@@ -231,15 +397,15 @@ function ZoneChart({ filters }: { filters: DashboardFilters }) {
         </div>
       </div>
 
-      {isLoading && <div className="h-48 rounded-xl shimmer" />}
+      {resolvedLoading && <div className="h-48 rounded-xl shimmer" />}
 
-      {!isLoading && zones.length === 0 && (
+      {!resolvedLoading && zones.length === 0 && (
         <div className="h-48 flex items-center justify-center text-[12px] text-white/25">
           No zone data available
         </div>
       )}
 
-      {!isLoading && zones.length > 0 && (
+      {!resolvedLoading && zones.length > 0 && (
         <>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={zones} barCategoryGap="35%"
@@ -300,7 +466,7 @@ function TrendChart({ data, loading }: { data: EnergyTrendPoint[], loading: bool
   }))
 
   return (
-    <div className="premium-card p-6">
+    <div className="premium-card p-card-lg">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-[13px] font-semibold text-white">Energy Consumption Trend</h3>
@@ -327,7 +493,7 @@ function TrendChart({ data, loading }: { data: EnergyTrendPoint[], loading: bool
       )}
 
       {!loading && chartData.length > 0 && (
-        <ResponsiveContainer width="100%" height={210}>
+        <ResponsiveContainer width="100%" height={270}>
           <LineChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
             <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
@@ -356,7 +522,7 @@ function MetricCard({ label, value, detail, icon: Icon, color }: any) {
   return (
     <motion.div
       whileHover={{ y: -2, transition: { duration: 0.15 } }}
-      className="premium-card p-4 flex items-center gap-4 group"
+      className="premium-card p-5 flex items-center gap-4 group"
     >
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 icon-box"
         style={{ backgroundColor: `${color}15`, border: `1px solid ${color}25` }}>
@@ -376,13 +542,31 @@ function MetricCard({ label, value, detail, icon: Icon, color }: any) {
    MAIN
 ============================================================================= */
 
-export function HomeTab({ filters }: HomeTabProps) {
+export function HomeTab({
+  filters,
+  onFiltersChange,
+  activeDataSourceId = "main",
+  billSources = [],
+  scannedBills = [],
+}: HomeTabProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const api = toApiFilters(filters)
+  const activeBillSource = billSources.find((s) => s.id === activeDataSourceId)
+  const customDashboard = useMemo(
+    () => buildCustomDashboard(activeBillSource, scannedBills),
+    [activeBillSource, scannedBills]
+  )
+  const isCustomDashboard = activeDataSourceId !== "main" && !!customDashboard
 
   const { data: kpis, isLoading: kpisLoading }       = useDashboardKPIs(api)
   const { data: trend = [], isLoading: trendLoading } = useEnergyTrend(api)
   const { data: appliances }                          = useAppliancesSummary(api)
+
+  const effectiveKpis = isCustomDashboard ? customDashboard.kpis : kpis
+  const effectiveTrend = isCustomDashboard ? customDashboard.trend : trend
+  const effectiveAppliances = isCustomDashboard ? customDashboard.appliances : appliances
+  const effectiveKpisLoading = isCustomDashboard ? false : kpisLoading
+  const effectiveTrendLoading = isCustomDashboard ? false : trendLoading
 
   const kpiCards = [
     {
@@ -391,9 +575,9 @@ export function HomeTab({ filters }: HomeTabProps) {
       glowClass: "card-glow-blue", iconBg: "bg-blue-500/15",
       iconColor: "text-blue-400", borderColor: "rgba(59,130,246,0.2)",
       accentColor: "#3B82F6",
-      value: kpis?.totalEnergyConsumption?.value ?? 0,
-      unit: "kWh", delta: kpis?.totalEnergyConsumption?.delta ?? 0,
-      detail: `Avg: ${((kpis?.avgConsumption ?? 0) / 1000).toFixed(1)} MWh`,
+      value: effectiveKpis?.totalEnergyConsumption?.value ?? 0,
+      unit: "kWh", delta: effectiveKpis?.totalEnergyConsumption?.delta ?? 0,
+      detail: `Avg: ${((effectiveKpis?.avgConsumption ?? 0) / 1000).toFixed(1)} MWh`,
     },
     {
       id: "saved", label: "Energy Saved",
@@ -401,8 +585,8 @@ export function HomeTab({ filters }: HomeTabProps) {
       glowClass: "card-glow-emerald", iconBg: "bg-emerald-500/15",
       iconColor: "text-emerald-400", borderColor: "rgba(16,185,129,0.2)",
       accentColor: "#10B981",
-      value: kpis?.energySaved?.value ?? 0,
-      unit: "kWh", delta: kpis?.energySaved?.delta ?? 0,
+      value: effectiveKpis?.energySaved?.value ?? 0,
+      unit: "kWh", delta: effectiveKpis?.energySaved?.delta ?? 0,
       detail: "vs. previous period",
     },
     {
@@ -411,8 +595,8 @@ export function HomeTab({ filters }: HomeTabProps) {
       glowClass: "card-glow-amber", iconBg: "bg-amber-500/15",
       iconColor: "text-amber-400", borderColor: "rgba(245,158,11,0.2)",
       accentColor: "#F59E0B",
-      value: kpis?.overConsumptionPercent?.value ?? 0,
-      unit: "%", delta: kpis?.overConsumptionPercent?.delta ?? 0,
+      value: effectiveKpis?.overConsumptionPercent?.value ?? 0,
+      unit: "%", delta: effectiveKpis?.overConsumptionPercent?.delta ?? 0,
       detail: "above baseline",
     },
     {
@@ -421,40 +605,51 @@ export function HomeTab({ filters }: HomeTabProps) {
       glowClass: "card-glow-violet", iconBg: "bg-violet-500/15",
       iconColor: "text-violet-400", borderColor: "rgba(139,92,246,0.2)",
       accentColor: "#8B5CF6",
-      value: kpis?.co2Emissions?.value ?? 0,
-      unit: "tCO₂e", delta: kpis?.co2Emissions?.delta ?? 0,
-      detail: kpis?.co2Emissions?.period ?? "",
+      value: effectiveKpis?.co2Emissions?.value ?? 0,
+      unit: "tCO₂e", delta: effectiveKpis?.co2Emissions?.delta ?? 0,
+      detail: effectiveKpis?.co2Emissions?.period ?? "",
     },
   ]
 
   const secondary = [
     {
       id: "cost", label: "Total Cost", icon: TrendingUp, color: "#F59E0B",
-      value: kpis?.totalCost
-        ? `£${kpis.totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`
+      value: effectiveKpis?.totalCost
+        ? `₹${effectiveKpis.totalCost.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
         : "—",
       detail: "for selected period",
     },
     {
       id: "avg", label: "Avg Consumption", icon: Zap, color: "#3B82F6",
-      value: kpis?.avgConsumption
-        ? `${(kpis.avgConsumption / 1000).toFixed(1)} MWh`
+      value: effectiveKpis?.avgConsumption
+        ? `${(effectiveKpis.avgConsumption / 1000).toFixed(1)} MWh`
         : "—",
-      detail: `Peak: ${(kpis?.peakConsumption ?? 0).toLocaleString()} kWh`,
+      detail: `Peak: ${(effectiveKpis?.peakConsumption ?? 0).toLocaleString()} kWh`,
     },
     {
       id: "devices", label: "Active Devices", icon: Activity, color: "#10B981",
-      value: appliances?.active_devices ?? "—",
-      detail: `${appliances?.total_devices ?? 0} total devices`,
+      value: effectiveAppliances?.active_devices ?? "—",
+      detail: `${effectiveAppliances?.total_devices ?? 0} total devices`,
     },
   ]
 
   return (
-    <div className="min-h-screen bg-black p-6 lg:p-8 text-white">
-      <div className="max-w-7xl mx-auto space-y-7">
+    <div className="min-h-screen bg-[#070707] px-8 py-12 text-white">
+      <BillSideChat
+        preferredDeviceId={api.device_id}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        kpiSnapshot={{
+          totalKwh: effectiveKpis?.totalEnergyConsumption?.value ?? 0,
+          totalCost: effectiveKpis?.totalCost ?? 0,
+          overPct: effectiveKpis?.overConsumptionPercent?.value ?? 0,
+        }}
+      />
+
+      <div className="max-w-[1400px] mx-auto">
 
         {/* ── Header ── */}
-        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-white">
             System Overview
           </h1>
@@ -464,44 +659,60 @@ export function HomeTab({ filters }: HomeTabProps) {
         </motion.div>
 
         {/* ── KPI Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpisLoading
-            ? Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)
-            : kpiCards.map((c, i) => (
-              <motion.div key={c.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}>
-                <KPICard {...c} onClick={() => setSelected(c.id)} />
-              </motion.div>
-            ))
-          }
-        </div>
+        <section className="pb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {effectiveKpisLoading
+              ? Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)
+              : kpiCards.map((c, i) => (
+                <motion.div key={c.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.07 }}>
+                  <KPICard {...c} onClick={() => setSelected(c.id)} />
+                </motion.div>
+              ))
+            }
+          </div>
+        </section>
+
+        {/* ── Section Divider ── */}
+        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent my-4" />
 
         {/* ── Trend + Zone ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2">
-            <TrendChart data={trend} loading={trendLoading} />
+        <section className="py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <TrendChart data={effectiveTrend} loading={effectiveTrendLoading} />
+            </div>
+            <ZoneChart filters={api} dataOverride={isCustomDashboard ? customDashboard.zones : undefined} />
           </div>
-          <ZoneChart filters={api} />
-        </div>
+        </section>
+
+        {/* ── Section Divider ── */}
+        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent my-4" />
 
         {/* ── Insights + Secondaries ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2">
-            <AIInsightsPanel filters={api} />
+        <section className="pt-10 pb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <AIInsightsPanel
+                filters={api}
+                insightsOverride={isCustomDashboard ? customDashboard.insights : undefined}
+              />
+            </div>
+            <div className="space-y-6">
+              {secondary.map((s, i) => (
+                <motion.div key={s.id}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.25 + i * 0.08 }}>
+                  <MetricCard {...s} />
+                </motion.div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-3.5">
-            {secondary.map((s, i) => (
-              <motion.div key={s.id}
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.25 + i * 0.08 }}>
-                <MetricCard {...s} />
-              </motion.div>
-            ))}
-          </div>
-        </div>
+        </section>
+
       </div>
 
       {/* ── Detail Modal ── */}

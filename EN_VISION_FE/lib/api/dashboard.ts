@@ -9,6 +9,7 @@ export interface StandardResponse<T> {
   success: boolean
   data: T
   timestamp: string
+  meta?: Record<string, unknown>
 }
 
 /* =============================================================================
@@ -97,14 +98,29 @@ export interface AnomalyDataPoint {
   z_score: number
   is_anomaly: boolean
   severity: "normal" | "low" | "medium" | "high" | "critical"
+  source_device_id?: number | null
+  source_zone_id?: number | null
+  source_department_id?: number | null
+  source_device?: string | null
+  source_zone?: string | null
+  source_department?: string | null
 }
 
 export interface AnomalyResponse {
   series: AnomalyDataPoint[]
   anomalies: AnomalyDataPoint[]
   total_anomalies: number
+  any_device_anomaly_days: number
   critical_count: number
   high_count: number
+  applied_scope?: {
+    department_id?: number | null
+    department_name?: string | null
+    device_id?: number | null
+    device_name?: string | null
+    start_date?: string
+    end_date?: string
+  }
 }
 
 // ── Forecast (new real implementation) ──────────────────
@@ -164,6 +180,49 @@ export interface AIInsightItem {
   timestamp: string
 }
 
+// ── EB Bill AI Scan ─────────────────────────────────────
+export interface BillDayWiseItem {
+  date: string
+  kwh: number
+}
+
+export interface BillScanResult {
+  provider_name: string
+  bill_number: string
+  consumer_number: string
+  meter_number: string
+  bill_date: string
+  billing_period_start: string
+  billing_period_end: string
+  billing_days: number
+  total_energy_consumption_kwh: number
+  sanctioned_load_kw: number
+  connected_load_kw: number
+  max_demand_kw: number
+  energy_charges_inr: number
+  fixed_charges_inr: number
+  fuel_adjustment_inr: number
+  duty_inr: number
+  tax_inr: number
+  total_amount_inr: number
+  amount_payable_inr: number
+  carbon_emissions_kg_co2: number
+  day_wise_consumption: BillDayWiseItem[]
+  confidence: number
+  extracted_text_preview: string
+  missing_fields: string[]
+  warnings: string[]
+}
+
+export interface BillIngestResult {
+  meter_id: number
+  rows_upserted: number
+  mode: string
+  date_start: string
+  date_end: string
+  total_kwh_ingested: number
+}
+
 /* =============================================================================
    PARAMS
 ============================================================================= */
@@ -196,7 +255,8 @@ async function unwrap<T>(
       return res.data
     }
     return fallback
-  } catch {
+  } catch (error) {
+    console.error("API call failed (returning fallback):", error)
     return fallback
   }
 }
@@ -209,37 +269,26 @@ async function unwrap<T>(
 export async function getKPIs(
   params?: Record<string, unknown>
 ): Promise<DashboardKPIs> {
-  const fallback: DashboardKPIs = {
-    totalEnergyConsumption: { value: 0, delta: 0 },
-    energySaved: { value: 0, delta: 0 },
-    overConsumptionPercent: { value: 0, delta: 0 },
-    co2Emissions: { value: 0, delta: 0 },
-    avgConsumption: 0,
-    peakConsumption: 0,
-    totalCost: 0,
-    systemStatus: "stable",
-    sustainabilityStatus: "on-track",
-  }
-  return unwrap(
-    client.get<StandardResponse<DashboardKPIs>>(
-      "/dashboard/kpis",
-      withCompany(params)
-    ),
-    fallback
+  const res = await client.get<StandardResponse<DashboardKPIs>>(
+    "/dashboard/kpis",
+    withCompany(params)
   )
+  if (res?.success && res.data) return res.data
+  throw new Error("KPI API returned an invalid response envelope")
 }
 
 /** GET /dashboard/energy-trend */
 export async function getEnergyTrend(
   params?: Record<string, unknown>
 ): Promise<EnergyTrendPoint[]> {
-  const raw = await unwrap(
-    client.get<StandardResponse<EnergyTrendPoint[]>>(
-      "/dashboard/energy-trend",
-      withCompany(params)
-    ),
-    []
+  const res = await client.get<StandardResponse<EnergyTrendPoint[]>>(
+    "/dashboard/energy-trend",
+    withCompany(params)
   )
+  if (!res?.success) {
+    throw new Error("Energy trend API returned unsuccessful response")
+  }
+  const raw = res.data
   if (!Array.isArray(raw)) return []
   return raw.map((item) => ({
     timestamp: item.timestamp,
@@ -355,6 +404,7 @@ export async function getAnomalies(
     series: [],
     anomalies: [],
     total_anomalies: 0,
+    any_device_anomaly_days: 0,
     critical_count: 0,
     high_count: 0,
   }
@@ -418,4 +468,51 @@ export async function getAIInsights(
     []
   )
   return Array.isArray(raw) ? raw : []
+}
+
+/** POST /dashboard/bill-parser/scan */
+export async function scanElectricityBill(file: File): Promise<BillScanResult> {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await client.post<StandardResponse<BillScanResult>>(
+    "/dashboard/bill-parser/scan",
+    formData,
+    undefined,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  )
+
+  if (!response?.success || !response.data) {
+    throw new Error("Bill scan request failed")
+  }
+
+  return response.data
+}
+
+/** POST /dashboard/bill-parser/ingest */
+export async function ingestParsedBill(
+  parsed: BillScanResult,
+  params?: { meter_id?: number; device_id?: number; clear_existing?: boolean }
+): Promise<BillIngestResult> {
+  const fallback: BillIngestResult = {
+    meter_id: 0,
+    rows_upserted: 0,
+    mode: "",
+    date_start: "",
+    date_end: "",
+    total_kwh_ingested: 0,
+  }
+
+  return unwrap(
+    client.post<StandardResponse<BillIngestResult>>(
+      "/dashboard/bill-parser/ingest",
+      parsed,
+      withCompany(params)
+    ),
+    fallback
+  )
 }

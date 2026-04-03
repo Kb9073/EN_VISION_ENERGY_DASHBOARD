@@ -2,22 +2,22 @@
 
 import { motion } from "framer-motion"
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
-  ComposedChart, Bar, LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Legend, ReferenceDot, BarChart,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, Cell,
 } from "recharts"
 import { Zap, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
 
 import {
   useDashboardKPIs,
   useEnergyTrend,
-  useCarbonBreakdown,
   useAppliancesUsage,
   type DashboardFilters,
 } from "@/hooks/use-dashboard-data"
 
-import { EmptyState } from "@/components/dashboard/empty-state"
-import type { FilterState } from "@/components/dashboard/filter-controls"
+import { EmptyState }        from "@/components/dashboard/empty-state"
+import { ChangeInCostCard }  from "@/components/dashboard/energy/ChangeInCostCard"
+import { CostOverviewPanel } from "@/components/dashboard/energy/CostOverviewPanel"
+import type { FilterState }  from "@/components/dashboard/filter-controls"
 
 /* =============================================================================
    CONSTANTS
@@ -48,11 +48,13 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <div
-      className={`rounded-2xl border border-white/8 bg-white/[0.03] backdrop-blur-sm p-6 ${className}`}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`premium-card p-6 ${className}`}
     >
       {children}
-    </div>
+    </motion.div>
   )
 }
 
@@ -82,13 +84,12 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
 
   const { data: kpis, isLoading, error } = useDashboardKPIs(apiFilters)
   const { data: trendData = [] }         = useEnergyTrend(apiFilters)
-  const { data: carbonBreakdown = [] }   = useCarbonBreakdown()
   const { data: appliancesUsage = [] }   = useAppliancesUsage(apiFilters)
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="p-7 lg:p-9 space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-28 rounded-2xl bg-white/5 animate-pulse" />
           ))}
@@ -110,35 +111,6 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
     ? Math.max(...trendData.map((d: any) => Number(d.peak_power ?? 0)))
     : 0
 
-  /* ── Chart shapes ── */
-  const consumptionData = trendData.map((item: any) => ({
-    date: new Date(item.timestamp).toLocaleDateString("en-US", {
-      month: "short", day: "numeric",
-    }),
-    total:    Number(item.total_kwh    ?? 0),
-    baseline: Number(item.baseline_kwh ?? 0),
-  }))
-
-  const peakPoint = consumptionData.length > 0
-    ? consumptionData.reduce((max: any, d: any) =>
-        d.total > max.total ? d : max
-      )
-    : null
-
-  const isShortRange = filters.timeRange === "7d" || filters.timeRange === "24h"
-
-  /* ── Energy mix from carbon breakdown ── */
-  const totalCarbonValue = carbonBreakdown.reduce(
-    (s: number, item: any) => s + Number(item.value ?? 0), 0
-  )
-  const consumptionMix = carbonBreakdown.map((item: any, idx: number) => ({
-    name:  item.source,
-    value: totalCarbonValue > 0
-      ? Math.round((Number(item.value ?? 0) / totalCarbonValue) * 100)
-      : 0,
-    color: CHART_COLORS[idx % CHART_COLORS.length],
-  }))
-
   /* ── Top 5 devices ── */
   const topDevices = appliancesUsage
     .slice(0, 5)
@@ -159,28 +131,29 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
   ========================================================================== */
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#070707] text-white px-6 py-10">
+      <div className="max-w-[1400px] mx-auto space-y-8">
 
         {/* ── Header ── */}
-        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-bold tracking-tight">
+        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="mb-2">
+          <h1 className="text-display-md font-bold tracking-tight">
             Energy & Cost Dashboard
           </h1>
-          <p className="text-white/40 mt-1 text-sm">
+          <p className="text-white/40 mt-2.5 text-sm">
             Consumption analytics and cost breakdown
           </p>
         </motion.div>
 
         {/* ── KPI Row ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <section>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-7">
           {[
             {
               label: "Total Cost",
-              value: `£${totalCost.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`,
+              value: `₹${totalCost.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
               sub: costDelta !== 0
-                ? `${costDelta > 0 ? "+" : ""}${costDelta.toFixed(1)}% vs last period`
-                : "Current period",
+                ? `${costDelta > 0 ? "+" : ""}${costDelta.toFixed(1)}% vs last period | ₹8.2/kWh avg`
+                : "Current period | ₹8.2/kWh avg",
               icon: DollarSign,
               color: "#F59E0B",
               trend: costDelta,
@@ -217,7 +190,7 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.07 }}
-                className="rounded-2xl border border-white/8 bg-white/[0.03] p-5"
+                className="premium-card p-6"
               >
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-white/40">{kpi.label}</p>
@@ -243,171 +216,26 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
             )
           })}
         </div>
+        </section>
 
-        {/* ── Trend Chart ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <SectionCard>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-semibold text-white">
-                Daily Consumption vs Baseline
-              </h3>
-              <div className="flex items-center gap-3 text-xs text-white/30">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block opacity-80" />
-                  Actual
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block opacity-60" />
-                  Baseline
-                </span>
-              </div>
+        {/* ── Change in Cost + Top Devices ── */}
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Change in Cost card */}
+            <div>
+              <ChangeInCostCard filters={apiFilters} />
             </div>
 
-            {consumptionData.length === 0 ? (
-              <EmptyState type="no-data" />
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                {isShortRange ? (
-                  <ComposedChart
-                    data={consumptionData}
-                    margin={{ top: 4, right: 0, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fill: "#ffffff50", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#ffffff50", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Bar dataKey="total"    name="Actual"   fill="#3B82F6" fillOpacity={0.85} radius={[5, 5, 0, 0]} />
-                    <Bar dataKey="baseline" name="Baseline" fill="#F59E0B" fillOpacity={0.5}  radius={[5, 5, 0, 0]} />
-                  </ComposedChart>
-                ) : (
-                  <LineChart
-                    data={consumptionData}
-                    margin={{ top: 4, right: 0, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fill: "#ffffff50", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#ffffff50", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey="total"
-                      stroke="#3B82F6"
-                      strokeWidth={2.5}
-                      dot={false}
-                      activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
-                      name="Actual"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="baseline"
-                      stroke="#F59E0B"
-                      strokeWidth={1.5}
-                      dot={false}
-                      strokeDasharray="5 5"
-                      name="Baseline"
-                    />
-                    {peakPoint && (
-                      <ReferenceDot
-                        x={peakPoint.date}
-                        y={peakPoint.total}
-                        r={6}
-                        fill="#EF4444"
-                        stroke="white"
-                        strokeWidth={2}
-                      />
-                    )}
-                  </LineChart>
-                )}
-              </ResponsiveContainer>
-            )}
-          </SectionCard>
-        </motion.div>
-
-        {/* ── Energy Mix + Top Devices ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* Energy Mix Pie */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            <SectionCard>
-              <h3 className="text-sm font-semibold text-white mb-5">
-                Energy Source Mix
-              </h3>
-
-              {consumptionMix.length === 0 ? (
-                <div className="h-56 flex items-center justify-center">
-                  <EmptyState type="no-data" />
-                </div>
-              ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie
-                        data={consumptionMix}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={55}
-                        outerRadius={85}
-                        paddingAngle={3}
-                        strokeWidth={0}
-                      >
-                        {consumptionMix.map((entry: any, idx: number) => (
-                          <Cell
-                            key={`cell-${idx}`}
-                            fill={entry.color}
-                            fillOpacity={0.85}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#0a0a0a",
-                          border: "1px solid #ffffff15",
-                          borderRadius: "10px",
-                          color: "white",
-                        }}
-                        formatter={(v: any, n: any) => [`${v}%`, n]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-
-                  {/* Legend */}
-                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
-                    {consumptionMix.map((item: any) => (
-                      <div key={item.name} className="flex items-center gap-2">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="text-xs text-white/50 truncate">
-                          {item.name}
-                        </span>
-                        <span className="text-xs font-semibold text-white ml-auto">
-                          {item.value}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </SectionCard>
-          </motion.div>
-
-          {/* Top Devices Bar */}
+            {/* Top Devices Bar — spans remaining 2 columns */}
+            <div className="lg:col-span-2">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
             <SectionCard>
-              <h3 className="text-sm font-semibold text-white mb-5">
+              <h3 className="text-heading-sm font-semibold text-white mb-6">
                 Top 5 Devices by Consumption
               </h3>
 
@@ -424,6 +252,18 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
                       margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
                       barSize={18}
                     >
+                      <defs>
+                        {CHART_COLORS.map((color, i) => (
+                          <linearGradient
+                            key={`grad-${i}`}
+                            id={`devGrad${i}`}
+                            x1="0" y1="0" x2="1" y2="0"
+                          >
+                            <stop offset="0%" stopColor={color} stopOpacity={0.9} />
+                            <stop offset="100%" stopColor={color} stopOpacity={0.4} />
+                          </linearGradient>
+                        ))}
+                      </defs>
                       <CartesianGrid
                         strokeDasharray="3 3"
                         stroke="#ffffff0d"
@@ -447,7 +287,7 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "#0a0a0a",
-                          border: "1px solid #ffffff15",
+                          border: "1px solid rgba(255,255,255,0.12)",
                           borderRadius: "10px",
                           color: "white",
                         }}
@@ -460,8 +300,7 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
                         {topDevices.map((_: any, idx: number) => (
                           <Cell
                             key={`cell-${idx}`}
-                            fill={CHART_COLORS[idx % CHART_COLORS.length]}
-                            fillOpacity={0.85}
+                            fill={`url(#devGrad${idx % CHART_COLORS.length})`}
                           />
                         ))}
                       </Bar>
@@ -502,7 +341,14 @@ export function EnergyTab({ filters }: { filters: FilterState }) {
               )}
             </SectionCard>
           </motion.div>
-        </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Cost Overview Panel ── */}
+        <section>
+          <CostOverviewPanel filters={apiFilters} />
+        </section>
 
       </div>
     </div>

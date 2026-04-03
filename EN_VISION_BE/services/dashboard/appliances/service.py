@@ -1,11 +1,13 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, literal
+from datetime import datetime, timedelta
 from models.device import Device, DeviceStatus
 from models.department import Department
 from models.meter import Meter
 from models.zone import Zone
 from models.location import Location
 from models.energy import EnergyAggDaily
+from models.energy import EnergyReading
 from typing import Optional
 
 
@@ -88,6 +90,41 @@ def get_device_energy_usage(
         .order_by(func.sum(EnergyAggDaily.total_kwh).desc())
         .all()
     )
+
+    if not rows:
+        start_dt = datetime.combine(start, datetime.min.time())
+        end_dt = datetime.combine(end + timedelta(days=1), datetime.min.time())
+
+        readings_query = (
+            db.query(
+                Device.id,
+                Device.name,
+                (func.sum(EnergyReading.reading_kw) / 60.0).label("total_kwh"),
+                literal(0.0).label("baseline_kwh"),
+            )
+            .join(Meter, Meter.device_id == Device.id)
+            .join(Zone, Zone.id == Meter.zone_id)
+            .join(Location, Location.id == Zone.location_id)
+            .join(EnergyReading, EnergyReading.meter_id == Meter.id)
+            .filter(
+                Location.company_id == company_id,
+                EnergyReading.recorded_at >= start_dt,
+                EnergyReading.recorded_at < end_dt,
+            )
+        )
+
+        if department_id:
+            readings_query = readings_query.filter(Device.department_id == department_id)
+
+        if device_id:
+            readings_query = readings_query.filter(Device.id == device_id)
+
+        rows = (
+            readings_query
+            .group_by(Device.id, Device.name)
+            .order_by((func.sum(EnergyReading.reading_kw) / 60.0).desc())
+            .all()
+        )
 
     return [
         {
